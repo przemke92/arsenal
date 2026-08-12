@@ -81,8 +81,10 @@ h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:-.005em;text-
 
 /* ---------- tables ---------- */
 .tablewrap{overflow-x:auto;border:1px solid var(--line)}
-.fixed{table-layout:fixed;min-width:660px}
-.fixed td,.fixed th{overflow:hidden;text-overflow:ellipsis}
+.fixed{table-layout:fixed;min-width:830px}
+.fixed td,.fixed th{overflow:hidden}
+.fixed td.l,.fixed th.l{text-overflow:ellipsis;white-space:nowrap}
+.fixed td.num{padding-left:4px;padding-right:7px}
 .fixed thead th.grp{
   text-align:center;white-space:normal;line-height:1.12;padding:7px 4px;
   border-left:1px solid var(--ink3);
@@ -579,8 +581,8 @@ function squadTable(d, set, key, dflt){
     `<th class="${cls || ''} sortable ${s.col === col ? 'sorted' : ''}" data-sort="${col}" data-key="${key}">${label}${s.col === col ? (s.dir < 0 ? ' ↓' : ' ↑') : ''}</th>`;
   const cols = `<colgroup>
       <col style="width:42px"><col>
-      ${comps.map(() => '<col style="width:38px"><col style="width:38px">').join('')}
-      <col style="width:46px"><col style="width:46px"><col style="width:52px">
+      ${comps.map(() => '<col style="width:46px"><col style="width:46px">').join('')}
+      <col style="width:54px"><col style="width:54px"><col style="width:54px">
     </colgroup>`;
   return `<div class="tablewrap"><table class="fixed">${cols}
     <thead>
@@ -601,8 +603,7 @@ function squadTable(d, set, key, dflt){
 }
 
 function pageSquad(d){
-  return head('Squad', 'Arsenal squad statistics',
-    'Every appearance and goal for the current squad, in all competitions, since they joined. Click a name for the season-by-season breakdown.')
+  return head('Squad', 'Arsenal squad statistics')
     + kpiBlock(d)
     + `<div class="section-h"><h2>The squad</h2><span class="hint">by shirt number</span></div>`
     + squadTable(d, d.career, 'squad');
@@ -613,7 +614,7 @@ function pageSeason(d){
   const set = d.seasons[key];
   const used = set.players.filter(p => p.total.a > 0);
   const goals = used.reduce((s, p) => s + p.total.g, 0);
-  return head('By season', 'Season ' + key, 'The same squad sheet, one season at a time. Every season you have archived is here.')
+  return head('By season', 'Season ' + key)
     + `<div class="controls">
         <select id="seasonPick">${d.seasonKeys.map(k =>
           `<option value="${k}" ${k === key ? 'selected' : ''}>Season ${k}</option>`).join('')}</select>
@@ -646,8 +647,7 @@ function pageComp(d, id){
     <td class="tot">${p.a || '·'}</td>
     <td class="tot ${p.g ? 'goal' : ''}">${p.g || '·'}</td></tr>`).join('');
 
-  return head('Competition', c.label,
-    'One column per fixture, exactly as in the sheet. A grey box is an appearance, a red box carries the goal count.')
+  return head('Competition', c.label)
     + `<div class="kpis" style="margin-bottom:18px">
         <div class="kpi"><div class="v">${anyPlayed}</div><div class="l">Matches played</div></div>
         <div class="kpi"><div class="v">${goalsTotal}</div><div class="l">Goals scored</div></div>
@@ -786,7 +786,7 @@ function pageExPlayers(d){
 function pageRecords(d){
   const r = d.records;
   const list = (rows, val, other, otherLabel, label) => `<div class="tablewrap narrow"><table class="fixed">
-    <colgroup><col style="width:34px"><col><col style="width:54px"><col style="width:54px"><col style="width:50px"></colgroup>
+    <colgroup><col style="width:34px"><col><col style="width:58px"><col style="width:58px"><col style="width:52px"></colgroup>
     <thead><tr><th>#</th><th class="l">Player</th><th>${label}</th><th>${otherLabel}</th><th>G/A</th></tr></thead>
     <tbody>${rows.map(x => `<tr>
       <td class="num shirt">${x.rank}</td><td class="l name">${esc(x.name)}</td>
