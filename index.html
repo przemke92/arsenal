@@ -81,6 +81,14 @@ h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:-.005em;text-
 
 /* ---------- tables ---------- */
 .tablewrap{overflow-x:auto;border:1px solid var(--line)}
+.fixed{table-layout:fixed;min-width:660px}
+.fixed td,.fixed th{overflow:hidden;text-overflow:ellipsis}
+.fixed thead th.grp{
+  text-align:center;white-space:normal;line-height:1.12;padding:7px 4px;
+  border-left:1px solid var(--ink3);
+}
+.fixed thead th.grp:first-of-type{border-left:none}
+.narrow .fixed{min-width:0}
 table{border-collapse:collapse;width:100%;font-size:14px}
 thead th{
   font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
@@ -88,6 +96,7 @@ thead th{
   background:var(--ink2);border-bottom:1px solid var(--line);white-space:nowrap;
 }
 thead th.l,tbody td.l{text-align:left}
+thead th.c{text-align:center}
 thead th.sortable{cursor:pointer;user-select:none}
 thead th.sortable:hover{color:var(--parchment)}
 thead th.sorted{color:var(--brass)}
@@ -568,13 +577,18 @@ function squadTable(d, set, key, dflt){
   const rows = sortTable(set.players, s.col, s.dir, getters);
   const th = (col, label, cls) =>
     `<th class="${cls || ''} sortable ${s.col === col ? 'sorted' : ''}" data-sort="${col}" data-key="${key}">${label}${s.col === col ? (s.dir < 0 ? ' ↓' : ' ↑') : ''}</th>`;
-  return `<div class="tablewrap"><table>
+  const cols = `<colgroup>
+      <col style="width:42px"><col>
+      ${comps.map(() => '<col style="width:38px"><col style="width:38px">').join('')}
+      <col style="width:46px"><col style="width:46px"><col style="width:52px">
+    </colgroup>`;
+  return `<div class="tablewrap"><table class="fixed">${cols}
     <thead>
       <tr>${th('no', '#')}${th('name', 'Player', 'l')}
-      ${comps.map(c => `<th colspan="2">${esc(c)}</th>`).join('')}
-      <th colspan="2">Total</th>${th('ratio', 'G/A')}</tr>
+      ${comps.map(c => `<th class="grp" colspan="2">${esc(c)}</th>`).join('')}
+      <th class="grp" colspan="2">Total</th>${th('ratio', 'G/A')}</tr>
       <tr><th></th><th class="l"></th>
-      ${comps.map(c => th('a_' + c, 'A') + th('g_' + c, 'G')).join('')}
+      ${comps.map(c => th('a_' + c, 'A', 'c') + th('g_' + c, 'G', 'c')).join('')}
       ${th('apps', 'A')}${th('goals', 'G')}<th></th></tr>
     </thead>
     <tbody>${rows.map(p => `<tr class="clickable" data-player="${esc(p.name)}">
@@ -771,8 +785,9 @@ function pageExPlayers(d){
 
 function pageRecords(d){
   const r = d.records;
-  const list = (rows, val, other, otherLabel, label) => `<div class="tablewrap narrow"><table>
-    <thead><tr><th style="width:30px">#</th><th class="l">Player</th><th>${label}</th><th>${otherLabel}</th><th>G/A</th></tr></thead>
+  const list = (rows, val, other, otherLabel, label) => `<div class="tablewrap narrow"><table class="fixed">
+    <colgroup><col style="width:34px"><col><col style="width:54px"><col style="width:54px"><col style="width:50px"></colgroup>
+    <thead><tr><th>#</th><th class="l">Player</th><th>${label}</th><th>${otherLabel}</th><th>G/A</th></tr></thead>
     <tbody>${rows.map(x => `<tr>
       <td class="num shirt">${x.rank}</td><td class="l name">${esc(x.name)}</td>
       <td class="num"><b>${x[val]}</b></td>
@@ -808,7 +823,9 @@ function playerPanel(d, name){
     <h2>${esc(career.name)}</h2>
     <div class="num" style="color:var(--muted);margin-bottom:20px">
       ${career.total.a} apps · ${career.total.g} goals · ${ratio(career.total.g, career.total.a)} per game</div>
-    <div class="tablewrap"><table><thead><tr><th class="l">Competition</th><th>Apps</th><th>Goals</th></tr></thead>
+    <div class="tablewrap"><table class="fixed" style="min-width:0">
+      <colgroup><col><col style="width:64px"><col style="width:64px"></colgroup>
+      <thead><tr><th class="l">Competition</th><th>Apps</th><th>Goals</th></tr></thead>
       <tbody>${d.career.comps.map(c => `<tr><td class="l">${esc(c)}</td>
         ${cellNum(career.comps[c].a)}${cellNum(career.comps[c].g, 'goal')}</tr>`).join('')}
       </tbody></table></div>
@@ -820,7 +837,9 @@ function playerPanel(d, name){
         <span class="num" style="width:74px;font-size:12px">${h.a}a · <span class="goal">${h.g}g</span></span>
       </div>`).join('')}` : ''}
     ${thisSeason.length ? `<div class="section-h"><h2 style="font-size:15px">This season</h2></div>
-      <div class="tablewrap"><table><tbody>${thisSeason.map(t => `<tr>
+      <div class="tablewrap"><table class="fixed" style="min-width:0">
+        <colgroup><col><col style="width:64px"><col style="width:64px"></colgroup>
+        <tbody>${thisSeason.map(t => `<tr>
         <td class="l">${esc(t.label)}</td><td class="num">${t.a}</td><td class="num goal">${t.g || '·'}</td>
       </tr>`).join('')}</tbody></table></div>` : ''}
   </div></div>`;
