@@ -733,15 +733,24 @@ function pageHistory(d){
 
   // final position timeline
   const tbl = b.table;
-  const PW = 900, PH = 190, pPL = 30, pPB = 30;
-  const px = i => pPL + (i / (tbl.length - 1)) * (PW - pPL - 14);
-  const py = p => 14 + ((p - 1) / 11) * (PH - 14 - pPB);
+  const PW = 900, PH = 250, pPL = 34, pPT = 26, pPB = 50;
+  const px = i => pPL + (i / (tbl.length - 1)) * (PW - pPL - 18);
+  const py = p => pPT + ((p - 1) / 11) * (PH - pPT - pPB);
   const posPath = tbl.map((t, i) => (i ? 'L' : 'M') + px(i).toFixed(1) + ' ' + py(t.pos).toFixed(1)).join(' ');
-  const posDots = tbl.map((t, i) => `<circle cx="${px(i).toFixed(1)}" cy="${py(t.pos).toFixed(1)}" r="${t.pos === 1 ? 4 : 2.5}"
-    fill="${t.pos === 1 ? 'var(--brass)' : 'var(--red)'}"><title>${esc(t.season)} · ${t.pos} · ${t.pts} pts</title></circle>`).join('');
-  const posLabels = tbl.filter((t, i) => i % 5 === 0 || i === tbl.length - 1).map((t, i0) => {
-    const i = tbl.indexOf(t);
-    return `<text class="axistext" x="${px(i)}" y="${PH - 8}" text-anchor="middle">${esc(t.season.slice(2, 4))}</text>`;
+  const posDots = tbl.map((t, i) => {
+    const X = px(i).toFixed(1), Y = py(t.pos), champ = t.pos === 1;
+    return `<circle cx="${X}" cy="${Y.toFixed(1)}" r="${champ ? 4 : 2.6}"
+      fill="${champ ? 'var(--brass)' : 'var(--red)'}"><title>${esc(t.season)} · ${t.pos} · ${t.pts} pts</title></circle>
+      <text class="axistext" x="${X}" y="${(Y - 9).toFixed(1)}" text-anchor="middle"
+        fill="${champ ? 'var(--brass)' : 'var(--parchment)'}"
+        style="font-size:9px;font-weight:${champ ? 600 : 400}">${t.pos}</text>`;
+  }).join('');
+  const posLabels = tbl.map((t, i) => {
+    const X = px(i).toFixed(1), Y = PH - 44;
+    const yr = t.season.slice(2, 4) + '/' + t.season.slice(-2);
+    return `<text class="axistext" x="${X}" y="${Y}" text-anchor="end"
+      transform="rotate(-90 ${X} ${Y})" style="font-size:9px"
+      fill="${t.pos === 1 ? 'var(--brass)' : 'var(--muted)'}">${esc(yr)}</text>`;
   }).join('');
 
   // matchweek average strip
@@ -783,9 +792,10 @@ function pageHistory(d){
 
     <div class="section-h"><h2>Where it finished</h2><span class="hint">league position, ${esc(tbl[0].season)} → ${esc(tbl[tbl.length - 1].season)}</span></div>
     <div class="chartbox"><svg viewBox="0 0 ${PW} ${PH}" role="img" aria-label="Final league position by season">
-      ${[1, 4, 8, 12].map(p => `<line class="gridline" x1="${pPL}" x2="${PW - 14}" y1="${py(p)}" y2="${py(p)}"/>
+      ${[1, 4, 8, 12].map(p => `<line class="gridline" x1="${pPL}" x2="${PW - 18}" y1="${py(p)}" y2="${py(p)}"/>
         <text class="axistext" x="${pPL - 8}" y="${py(p) + 3}" text-anchor="end">${p}</text>`).join('')}
-      <path d="${posPath}" fill="none" stroke="var(--red)" stroke-width="1.5" opacity=".65"/>${posDots}${posLabels}</svg></div>
+      <path d="${posPath}" fill="none" stroke="var(--red)" stroke-width="1.5" opacity=".55"/>${posDots}${posLabels}</svg>
+      <div class="legend"><span>The number above each point is the final league position. Amber marks a title.</span></div></div>
 
     <div class="section-h"><h2>Kindest matchweek</h2><span class="hint">average points in each matchweek, ${b.seasons.length} seasons</span></div>
     <div class="kpis" style="margin-bottom:14px">
