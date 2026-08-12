@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Admin · The Arsenal Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --ink:#141010;--ink2:#1D1717;--ink3:#272020;--line:#3A2F2E;
+  --parchment:#EDE6DA;--muted:#8F827A;--red:#DB0007;--brass:#C8A15A;--ok:#3FA34D;
+  --display:"Archivo Black","Arial Black",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ink);color:var(--parchment);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:820px;margin:0 auto;padding:40px 22px 90px}
+h1{font-family:var(--display);font-weight:400;font-size:28px;text-transform:uppercase;letter-spacing:-.01em;margin:0}
+h2{font-family:var(--display);font-weight:400;font-size:15px;text-transform:uppercase;margin:34px 0 12px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:var(--brass);text-transform:uppercase}
+.lede{color:var(--muted);margin:10px 0 26px;max-width:62ch}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+a{color:var(--brass)}
+.drop{
+  border:1px dashed var(--line);padding:44px 20px;text-align:center;color:var(--muted);
+  border-radius:3px;transition:border-color .15s,color .15s;
+}
+.drop.over{border-color:var(--brass);color:var(--parchment);background:var(--ink2)}
+.drop strong{display:block;font-family:var(--mono);font-size:13px;color:var(--parchment);margin-bottom:6px}
+label.pick{color:var(--brass);cursor:pointer;text-decoration:underline}
+.btn{
+  font-family:var(--mono);font-size:12px;padding:9px 16px;border:1px solid var(--brass);
+  background:transparent;color:var(--brass);cursor:pointer;border-radius:2px;text-decoration:none;display:inline-block;
+}
+.btn:hover{background:var(--brass);color:var(--ink)}
+.btn.ghost{border-color:var(--line);color:var(--muted)}
+.btn.ghost:hover{background:var(--ink2);color:var(--parchment)}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+.kpi{background:var(--ink2);padding:13px 15px}
+.kpi .v{font-family:var(--mono);font-size:22px;font-weight:600}
+.kpi .l{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-top:4px}
+table{border-collapse:collapse;width:100%;font-size:13px;border:1px solid var(--line)}
+th{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+  font-weight:500;text-align:left;padding:8px 10px;background:var(--ink2);border-bottom:1px solid var(--line)}
+td{padding:6px 10px;border-bottom:1px solid var(--ink3)}
+td.r,th.r{text-align:right}
+.check{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--ink3);font-size:14px}
+.check .mark{font-family:var(--mono);font-size:12px;flex:0 0 auto;width:18px}
+.check.ok .mark{color:var(--ok)}
+.check.warn .mark{color:var(--brass)}
+.check.bad .mark{color:var(--red)}
+.check .txt small{display:block;color:var(--muted);font-family:var(--mono);font-size:11px;margin-top:2px}
+.hidden{display:none}
+.note{border-left:2px solid var(--line);padding:2px 0 2px 14px;color:var(--muted);margin:20px 0;font-size:14px}
+.foot{margin-top:50px;padding-top:18px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:11px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Admin</div>
+  <h1>Check the workbook</h1>
+  <p class="lede">Drop a copy of arsenal_stats.xlsx here to see what the dashboard will make of it,
+  before you commit anything. Nothing is uploaded anywhere: the file is read in this browser and forgotten
+  when you close the tab.</p>
+
+  <div class="drop" id="drop">
+    <strong>Drop arsenal_stats.xlsx here</strong>
+    or <label class="pick">choose a file<input type="file" id="pick" accept=".xlsx,.xlsm" hidden></label>
+  </div>
+
+  <div id="out" class="hidden"></div>
+
+  <div class="foot">
+    This page is not linked from the dashboard. Keep the address to yourself.<br>
+    <a href="index.html">Back to the dashboard</a>
+  </div>
+</div>
+
+<script>
+/* Parser identyczny jak w index.html. */
+const T = v => v === null || v === undefined ? '' : (typeof v === 'string' ? v.trim() : String(v));
+const N = v => {
+  if (v === null || v === undefined || v === '' || v === ' ') return 0;
+  const n = typeof v === 'number' ? v : parseFloat(v);
+  return isNaN(n) ? 0 : n;
+};
+const at = (aoa, r, c) => (aoa[r] && aoa[r][c] !== undefined) ? aoa[r][c] : null;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function headerRow(aoa){
+  for (let r = 0; r < 8; r++) if (T(at(aoa, r, 1)).toLowerCase() === 'name') return r;
+  return -1;
+}
+function parseSquadSheet(aoa){
+  const h = headerRow(aoa); if (h < 0) return null;
+  const above = h - 1, comps = [];
+  const width = Math.max(...aoa.slice(0, h + 1).map(r => (r || []).length));
+  let c = 2;
+  while (c < width){
+    const lab = T(at(aoa, h, c)).toLowerCase();
+    if (lab.indexOf('apps') === 0 || lab === 'a'){
+      let name = T(at(aoa, above, c)), cc = c;
+      while (!name && cc > 0){ cc--; name = T(at(aoa, above, cc)); }
+      comps.push({name: name || 'Comp', col: c}); c += 2;
+    } else c++;
+  }
+  const players = [];
+  for (let r = h + 1; r < aoa.length; r++){
+    const name = T(at(aoa, r, 1)); if (!name) continue;
+    const p = {no: T(at(aoa, r, 0)), name, comps: {}};
+    comps.forEach(k => p.comps[k.name] = {a: N(at(aoa, r, k.col)), g: N(at(aoa, r, k.col + 1))});
+    p.total = p.comps['Total'] || null; delete p.comps['Total'];
+    if (!p.total){ p.total = {a: 0, g: 0}; Object.values(p.comps).forEach(v => {p.total.a += v.a; p.total.g += v.g;}); }
+    players.push(p);
+  }
+  return {comps: comps.map(k => k.name).filter(n => n.toLowerCase() !== 'total'), players};
+}
+function parseMatchSheet(aoa, key, label){
+  const h = headerRow(aoa); if (h < 0) return null;
+  const oppRow = h - 1, stageRow = h - 2;
+  const width = Math.max(...aoa.slice(0, h + 1).map(r => (r || []).length));
+  const fixtures = [], cols = []; let stage = '';
+  for (let c = 2; c < width; c++){
+    if (T(at(aoa, h, c)) === 'A'){
+      if (stageRow >= 0){ const st = T(at(aoa, stageRow, c)); if (st) stage = st; }
+      fixtures.push({opponent: T(at(aoa, oppRow, c)), stage}); cols.push(c); c++;
+    }
+  }
+  const players = [];
+  for (let r = h + 1; r < aoa.length; r++){
+    const name = T(at(aoa, r, 1)); if (!name) continue;
+    const cells = cols.map(c => ({a: N(at(aoa, r, c)), g: N(at(aoa, r, c + 1))}));
+    players.push({no: T(at(aoa, r, 0)), name, cells,
+      a: cells.reduce((s, x) => s + x.a, 0), g: cells.reduce((s, x) => s + x.g, 0)});
+  }
+  return {key, label, fixtures, players};
+}
+function parseSingleMatchSheet(aoa, key, label){
+  const h = headerRow(aoa); if (h < 0) return null;
+  const players = [];
+  for (let r = h + 1; r < aoa.length; r++){
+    const name = T(at(aoa, r, 1)); if (!name) continue;
+    const a = N(at(aoa, r, 2)), g = N(at(aoa, r, 3));
+    players.push({no: T(at(aoa, r, 0)), name, a, g, cells: [{a, g}]});
+  }
+  return {key, label, fixtures: [{opponent: '', stage: label}], players};
+}
+function parseRecords(aoa){
+  const apps = [], goals = [];
+  for (let r = 2; r < aoa.length; r++){
+    if (T(at(aoa, r, 1))) apps.push({rank: N(at(aoa, r, 0)), name: T(at(aoa, r, 1)),
+      apps: N(at(aoa, r, 2)), goals: N(at(aoa, r, 3))});
+    if (T(at(aoa, r, 8))) goals.push({rank: N(at(aoa, r, 7)), name: T(at(aoa, r, 8)),
+      goals: N(at(aoa, r, 9)), apps: N(at(aoa, r, 10))});
+  }
+  return {apps, goals};
+}
+function parseBreakdown(aoa){
+  const width = Math.max(...aoa.map(r => (r || []).length));
+  const seasons = [], eras = {};
+  for (let c = 2; c < width; c++){
+    const s = T(at(aoa, 1, c)); if (s) seasons.push({label: s, col: c});
+    const e = T(at(aoa, 0, c)); if (e) eras[c] = e;
+  }
+  const eraFor = {}; let cur = '';
+  seasons.forEach(s => { if (eras[s.col]) cur = eras[s.col]; eraFor[s.label] = cur; });
+  const mwRows = [];
+  for (let r = 2; r < 60; r++){
+    const v = at(aoa, r, 1);
+    if (typeof v === 'number') mwRows.push({mw: v, row: r});
+    else if (T(v).toUpperCase() === 'SUM') break;
+  }
+  const grid = {}, avg = [];
+  seasons.forEach(s => grid[s.label] = mwRows.map(m => {
+    const v = at(aoa, m.row, s.col);
+    return (v === null || T(v) === '') ? null : N(v);
+  }));
+  mwRows.forEach(m => { const v = at(aoa, m.row, 0); avg.push(v === null ? null : N(v)); });
+  const sums = {}, positions = {};
+  for (let r = 2; r < 60; r++){
+    const lab = T(at(aoa, r, 1)).toUpperCase();
+    if (lab === 'SUM') seasons.forEach(s => sums[s.label] = N(at(aoa, r, s.col)));
+    if (lab === 'POS') seasons.forEach(s => positions[s.label] = N(at(aoa, r, s.col)));
+  }
+  let h = -1;
+  for (let r = 0; r < aoa.length; r++) if (T(at(aoa, r, 0)).toLowerCase() === 'season'){ h = r; break; }
+  const table = [], managers = [];
+  if (h >= 0){
+    let era = '';
+    for (let r = h + 1; r < aoa.length; r++){
+      const s = T(at(aoa, r, 0)); if (!s) continue;
+      era = T(at(aoa, r, 10)) || era;
+      table.push({season: s, pos: N(at(aoa, r, 1)), pts: N(at(aoa, r, 3)),
+        w: N(at(aoa, r, 4)), d: N(at(aoa, r, 5)), l: N(at(aoa, r, 6)),
+        gf: N(at(aoa, r, 7)), ga: N(at(aoa, r, 8)), gd: N(at(aoa, r, 9)), era});
+    }
+    for (let r = h; r < aoa.length; r++){
+      const nm = T(at(aoa, r, 22));
+      if (nm && /[A-Za-z]/.test(nm)){
+        const w = N(at(aoa, r, 24)), d = N(at(aoa, r, 25)), l = N(at(aoa, r, 26));
+        if (w || d || l) managers.push({name: nm, w, d, l});
+      }
+    }
+  }
+  return {seasons: seasons.map(s => s.label), eras: eraFor,
+    matchweeks: mwRows.map(m => m.mw), grid, avg, sums, positions, table, managers};
+}
+function parseWorkbook(wb){
+  const aoa = name => wb.Sheets[name]
+    ? XLSX.utils.sheet_to_json(wb.Sheets[name], {header: 1, raw: true, defval: null, blankrows: true}) : null;
+  const data = {};
+  data.career = parseSquadSheet(aoa('Apps & Goals'));
+  const seasons = {};
+  wb.SheetNames.filter(n => n.indexOf('Apps & Goals ') === 0).forEach(n => {
+    seasons[n.replace('Apps & Goals ', '').trim()] = parseSquadSheet(aoa(n));
+  });
+  data.seasons = seasons;
+  data.seasonKeys = Object.keys(seasons).sort((a, b) => parseInt(b) - parseInt(a));
+  data.currentSeason = data.seasonKeys[0];
+  data.competitions = [
+    parseMatchSheet(aoa('Premier League'), 'premier-league', 'Premier League'),
+    parseMatchSheet(aoa('Europe'), 'europe', 'Europe'),
+    parseMatchSheet(aoa('FA Cup'), 'fa-cup', 'FA Cup'),
+    parseMatchSheet(aoa('League Cup'), 'league-cup', 'League Cup'),
+    parseSingleMatchSheet(aoa('Other (CS)'), 'community-shield', 'Community Shield')
+  ].filter(Boolean);
+  data.exPlayers = parseSquadSheet(aoa('Ex-Players'));
+  data.records = parseRecords(aoa('All-time records'));
+  data.breakdown = parseBreakdown(aoa('Season Breakdown'));
+  let asOf = null;
+  const ag = aoa('Apps & Goals');
+  for (let r = 0; r < 4; r++) for (let c = 14; c < 20; c++){
+    const v = at(ag, r, c); if (v instanceof Date) asOf = v.toISOString().slice(0, 10);
+  }
+  data.meta = {asOf, source: 'arsenal_stats.xlsx'};
+  return data;
+}
+
+/* ---------- report ---------- */
+const REQUIRED = ['Apps & Goals', 'Premier League', 'Europe', 'FA Cup', 'League Cup',
+  'Other (CS)', 'Ex-Players', 'All-time records', 'Season Breakdown'];
+let parsed = null;
+
+function check(state, title, detail){
+  return `<div class="check ${state}"><span class="mark">${
+    state === 'ok' ? '✓' : state === 'warn' ? '!' : '×'}</span>
+    <span class="txt">${esc(title)}${detail ? `<small>${esc(detail)}</small>` : ''}</span></div>`;
+}
+
+function report(wb, d, fileName, fileSize){
+  const missing = REQUIRED.filter(n => !wb.SheetNames.includes(n));
+  const played = d.competitions.reduce((s, c) =>
+    s + c.fixtures.filter((f, i) => c.players.some(p => p.cells[i] && p.cells[i].a > 0)).length, 0);
+  const noNumber = d.career.players.filter(p => !p.no || isNaN(parseInt(p.no)));
+  const seasonGoals = d.competitions.reduce((s, c) => s + c.players.reduce((t, p) => t + p.g, 0), 0);
+  const dupes = (() => {
+    const seen = {}, out = [];
+    d.career.players.forEach(p => { if (seen[p.name]) out.push(p.name); seen[p.name] = 1; });
+    return out;
+  })();
+
+  const checks =
+    (missing.length ? check('bad', 'Missing sheets', missing.join(', '))
+                    : check('ok', 'All nine sheets found', REQUIRED.length + ' sheets read'))
+    + check(d.career.players.length ? 'ok' : 'bad', d.career.players.length + ' players in the squad sheet',
+        'Apps & Goals')
+    + check(d.seasonKeys.length ? 'ok' : 'warn', d.seasonKeys.length + ' season sheets',
+        d.seasonKeys.join(' · '))
+    + check(played ? 'ok' : 'warn', played + ' matches recorded across all competitions',
+        played ? seasonGoals + ' goals logged' : 'the current season sheets are still empty')
+    + check(d.breakdown.seasons.length ? 'ok' : 'bad',
+        d.breakdown.seasons.length + ' seasons in Season Breakdown',
+        d.breakdown.table.length + ' rows in the long table')
+    + check(d.exPlayers.players.length ? 'ok' : 'warn', d.exPlayers.players.length + ' ex-players')
+    + check(noNumber.length ? 'warn' : 'ok',
+        noNumber.length ? noNumber.length + ' players without a shirt number' : 'Every player has a shirt number',
+        noNumber.length ? noNumber.map(p => p.name).join(', ') + ' will sort to the bottom' : '')
+    + (dupes.length ? check('warn', 'Duplicate names in the squad sheet', dupes.join(', ')) : '')
+    + check(d.meta.asOf ? 'ok' : 'warn', d.meta.asOf ? 'Dated ' + d.meta.asOf : 'No date in cell R2',
+        d.meta.asOf ? '' : 'the dashboard will show a dash instead');
+
+  const compRows = d.competitions.map(c => {
+    const done = c.fixtures.filter((f, i) => c.players.some(p => p.cells[i] && p.cells[i].a > 0)).length;
+    return `<tr><td>${esc(c.label)}</td>
+      <td class="r num">${c.fixtures.length}</td>
+      <td class="r num">${done}</td>
+      <td class="r num">${c.players.reduce((s, p) => s + p.g, 0)}</td></tr>`;
+  }).join('');
+
+  const top = d.career.players.slice().sort((a, b) => b.total.a - a.total.a).slice(0, 5)
+    .map(p => `<tr><td class="num" style="color:var(--brass);width:36px">${esc(p.no)}</td>
+      <td>${esc(p.name)}</td><td class="r num">${p.total.a}</td><td class="r num">${p.total.g}</td></tr>`).join('');
+
+  return `<h2>File</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${(fileSize / 1024).toFixed(0)}</div><div class="l">KB</div></div>
+      <div class="kpi"><div class="v">${wb.SheetNames.length}</div><div class="l">Sheets</div></div>
+      <div class="kpi"><div class="v">${d.career.players.length}</div><div class="l">Squad</div></div>
+      <div class="kpi"><div class="v">${d.seasonKeys.length}</div><div class="l">Seasons</div></div>
+      <div class="kpi"><div class="v">${played}</div><div class="l">Matches</div></div>
+    </div>
+    <div class="note">${esc(fileName)}</div>
+
+    <h2>Checks</h2>${checks}
+
+    <h2>Competitions</h2>
+    <table><thead><tr><th>Competition</th><th class="r">Fixtures</th><th class="r">Played</th><th class="r">Goals</th></tr></thead>
+      <tbody>${compRows}</tbody></table>
+
+    <h2>Most appearances in the squad sheet</h2>
+    <table><thead><tr><th>#</th><th>Player</th><th class="r">Apps</th><th class="r">Goals</th></tr></thead>
+      <tbody>${top}</tbody></table>
+
+    <h2>Looks right?</h2>
+    <p class="lede">Open the dashboard with this file to click through it. The preview lives in this tab only,
+    nobody else sees it, and the live site keeps reading data/arsenal_stats.xlsx until you commit.</p>
+    <div class="row">
+      <button class="btn" id="open">Open the dashboard with this file</button>
+      <a class="btn ghost" href="https://github.com/przemke92/arsenal/upload/main/data" target="_blank" rel="noopener">Commit it on GitHub</a>
+    </div>`;
+}
+
+const out = document.getElementById('out');
+function handle(file){
+  const fr = new FileReader();
+  fr.onload = () => {
+    out.classList.remove('hidden');
+    try{
+      const wb = XLSX.read(new Uint8Array(fr.result), {type: 'array', cellDates: true});
+      parsed = parseWorkbook(wb);
+      out.innerHTML = report(wb, parsed, file.name, file.size);
+      const btn = document.getElementById('open');
+      if (btn) btn.onclick = () => {
+        try{
+          sessionStorage.setItem('arsenal-preview', JSON.stringify(parsed));
+          location.href = 'index.html';
+        }catch(e){
+          btn.textContent = 'This browser blocked the handoff: ' + e.message;
+        }
+      };
+    }catch(e){
+      out.innerHTML = `<h2>Could not read that file</h2>${check('bad', e.message,
+        'Make sure it is the .xlsx workbook, not a .csv export or a zipped folder.')}`;
+    }
+  };
+  fr.readAsArrayBuffer(file);
+}
+
+const drop = document.getElementById('drop'), pick = document.getElementById('pick');
+pick.onchange = () => pick.files[0] && handle(pick.files[0]);
+['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.add('over');
+}));
+['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.remove('over');
+}));
+drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) handle(f); });
+</script>
+</body>
+</html>
