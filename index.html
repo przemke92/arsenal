@@ -124,6 +124,9 @@ tbody td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--ink3);w
 tbody tr:hover td{background:var(--ink2)}
 tbody tr.clickable{cursor:pointer}
 td.name{font-weight:500}
+td.name .sn{font-weight:600}
+td.name .gn{color:var(--muted)}
+.ledger td.pname .gn{color:var(--muted)}
 td.zero{color:#4E4442}
 .shirt{font-family:var(--mono);font-size:11px;color:var(--brass);width:34px}
 .goal{color:var(--red);font-weight:600}
@@ -231,6 +234,9 @@ select:focus,input:focus,button:focus-visible,a:focus-visible{outline:2px solid 
   .narrow .fixed col.c-no{width:30px}
   .narrow .fixed col.c-name{width:110px}
   .fixed td.l,.fixed th.l{font-size:12px}
+  .fixed td.name{white-space:normal;text-overflow:clip;line-height:1.15;padding-top:5px;padding-bottom:5px}
+  .fixed td.name .gn{display:block;font-size:11px}
+  .fixed col.c-name{width:132px}
 }
 @media (max-width:900px){
   .shell{display:block}
@@ -539,6 +545,13 @@ window.addEventListener('hashchange', () => { state.player = null; render(); });
 /* ============================================================
    4. VIEW HELPERS
    ============================================================ */
+const nameHTML = n => {
+  const parts = String(n).split(' ');
+  let i = 0;
+  while (i < parts.length && parts[i] === parts[i].toUpperCase() && /[A-ZÀ-Ý]/.test(parts[i])) i++;
+  if (i === 0 || i === parts.length) return `<span class="sn">${esc(n)}</span>`;
+  return `<span class="sn">${esc(parts.slice(0, i).join(' '))}</span> <span class="gn">${esc(parts.slice(i).join(' '))}</span>`;
+};
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const short = n => { const p = String(n).split(' '); return p.length > 1 ? p[0] : n; };
 const cellNum = (v, cls) => `<td class="num ${v ? (cls || '') : 'zero'}">${v || '·'}</td>`;
@@ -641,7 +654,7 @@ function squadTable(d, set, key, dflt){
       ${th('apps', 'Apps')}${th('goals', 'Gls')}<th></th></tr>
     </thead>
     <tbody>${rows.map(p => `<tr class="clickable" data-player="${esc(p.name)}">
-      <td class="num shirt">${esc(p.no)}</td><td class="l name">${esc(p.name)}</td>
+      <td class="num shirt">${esc(p.no)}</td><td class="l name">${nameHTML(p.name)}</td>
       ${comps.map(c => cellNum(p.comps[c].a) + cellNum(p.comps[c].g, 'goal')).join('')}
       <td class="num" style="border-left:1px solid var(--line)"><b>${p.total.a}</b></td>
       <td class="num goal"><b>${p.total.g || '·'}</b></td>
@@ -688,7 +701,7 @@ function pageComp(d, id){
     <th class="fix" style="text-align:right;padding-right:10px">Gls</th></tr>`;
 
   const body = players.map(p => `<tr>
-    <td class="pname">${esc(p.name)}</td>
+    <td class="pname">${nameHTML(p.name)}</td>
     ${p.cells.map(x => `<td class="cell">${
       x.g > 0 ? `<span class="pip scored">${x.g}</span>` :
       x.a > 0 ? `<span class="pip app">1</span>` : ''}</td>`).join('')}
@@ -847,7 +860,7 @@ function pageRecords(d){
     <colgroup><col class="c-no"><col class="c-name"><col class="c-tot"><col class="c-tot"><col class="c-ratio"></colgroup>
     <thead><tr><th>#</th><th class="l">Player</th><th>${label}</th><th>${otherLabel}</th><th>G/A</th></tr></thead>
     <tbody>${rows.map(x => `<tr>
-      <td class="num shirt">${x.rank}</td><td class="l name">${esc(x.name)}</td>
+      <td class="num shirt">${x.rank}</td><td class="l name">${nameHTML(x.name)}</td>
       <td class="num"><b>${x[val]}</b></td>
       <td class="num" style="color:var(--muted)">${x[other]}</td>
       <td class="num" style="color:var(--muted)">${ratio(x.goals, x.apps)}</td>
