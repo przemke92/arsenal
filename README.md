@@ -1,4 +1,4 @@
-# The Arsenal Ledger
+# The Arsenal Dashboard
 
 Statyczna strona ze statystykami Arsenalu, czytana bezpośrednio z `arsenal_stats.xlsx`.
 Bez backendu, bez bazy danych, bez API. Jeden plik HTML plus Twój Excel.
@@ -8,6 +8,7 @@ Bez backendu, bez bazy danych, bez API. Jeden plik HTML plus Twój Excel.
 ```
 /
   index.html
+  admin.html
   data/
     arsenal_stats.xlsx
 ```
@@ -43,31 +44,29 @@ Arkusz `#` nie jest czytany. Zostaje Twoim backendem w Excelu.
 
 | Adres | Źródło w pliku |
 |---|---|
-| `#/` | Season Breakdown (macierz kolejek) plus podsumowanie |
-| `#/squad` | Apps & Goals |
+| `#/` | Apps & Goals (kadra, sortowana po numerze) |
+
 | `#/season` | Apps & Goals 16-17 ... 26-27 |
 | `#/premier-league` | Premier League |
 | `#/europe` | Europe |
 | `#/fa-cup` | FA Cup |
 | `#/league-cup` | League Cup |
 | `#/community-shield` | Other (CS) |
-| `#/history` | Season Breakdown |
+| `#/history` | Season Breakdown (macierz kolejek, wykresy, tabela) |
 | `#/ex-players` | Ex-Players |
 | `#/records` | All-time records |
-| `#/file` | status wczytania, podgląd pliku przed commitem |
 
-## Podgląd przed commitem
+## Panel admina
 
-Na podstronie `#/file` możesz przeciągnąć kopię pliku i zobaczyć,
-jak wygląda po Twoich zmianach, bez ruszania repo.
+`admin.html` nie jest nigdzie podlinkowany z dashboardu i ma `noindex`.
+Wchodzisz na `https://przemke92.github.io/arsenal/admin.html`, przeciągasz kopię pliku
+i dostajesz raport: czy wszystkie arkusze są na miejscu, ilu zawodników, ile meczów,
+kto nie ma numeru, czy nie ma duplikatów nazwisk. Przycisk "Open the dashboard with this file"
+otwiera pełny dashboard na tych danych, tylko w Twojej karcie przeglądarki.
+Wyjście z podglądu: "exit preview" w lewym dolnym rogu dashboardu.
 
 ## Kopia awaryjna
 
 W `index.html` jest wbudowany snapshot danych z 12.08.2026. Używany tylko wtedy,
 gdy nie da się pobrać `data/arsenal_stats.xlsx` (np. przy otwarciu pliku lokalnie
 przez `file://`). Wtedy w lewym dolnym rogu świeci "Bundled snapshot".
-
-## Do poprawki w Excelu
-
-- `League Cup`, wiersz 41: sumy to `SUM(E5:E40)` zamiast `SUM(E4:E40)`, więc wiersz 4 wypada z sum.
-- `Other (CS)`: zawodnicy zaczynają się w wierszu 3, a nie 4 jak wszędzie indziej. Parser to obsługuje.
