@@ -1,7 +1,6 @@
 # The Arsenal Dashboard
 
 Statyczna strona ze statystykami Arsenalu, czytana bezpośrednio z `arsenal_stats.xlsx`.
-Bez backendu, bez bazy danych, bez API. Jeden plik HTML plus Twój Excel.
 
 ## Struktura repo
 
@@ -13,7 +12,6 @@ Bez backendu, bez bazy danych, bez API. Jeden plik HTML plus Twój Excel.
     arsenal_stats.xlsx
 ```
 
-To wszystko. GitHub Pages, branch main, katalog root.
 
 ## Jak aktualizować statystyki
 
