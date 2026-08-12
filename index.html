@@ -18,6 +18,9 @@
   --muted:#8F827A;
   --red:#DB0007;
   --red-dim:#7A1114;
+  --win:#3FA34D;
+  --draw:#E0B341;
+  --loss:#C0342B;
   --brass:#C8A15A;
   --display:"Archivo Black","Arial Black",system-ui,sans-serif;
   --body:"IBM Plex Sans",system-ui,sans-serif;
@@ -126,9 +129,9 @@ td.zero{color:#4E4442}
 .mrow.cur .lab{color:var(--brass)}
 .mcells{display:flex;gap:2px}
 .mc{width:9px;height:9px;border-radius:1px;background:#2A2222}
-.mc.w{background:var(--red)}
-.mc.d{background:var(--brass);opacity:.55}
-.mc.l{background:#2A2222;box-shadow:inset 0 0 0 1px #3A2F2E}
+.mc.w{background:var(--win)}
+.mc.d{background:var(--draw)}
+.mc.l{background:var(--loss)}
 .mc.na{background:transparent}
 .mrow .pts{font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:8px;width:52px}
 .mhead{display:flex;gap:8px;margin-bottom:6px;font-family:var(--mono);font-size:9px;color:var(--muted)}
@@ -511,14 +514,13 @@ function kpiBlock(d){
   const scorer = cur.players.slice().sort((a, b) => b.total.g - a.total.g)[0];
   const appsLeader = cur.players.slice().sort((a, b) => b.total.a - a.total.a)[0];
   const mostApps = d.career.players.slice().sort((a, b) => b.total.a - a.total.a)[0];
-  const titles = b.table.filter(t => t.pos === 1).length;
+  const mostGoals = d.career.players.slice().sort((a, b) => b.total.g - a.total.g)[0];
   return `<div class="kpis">
       <div class="kpi"><div class="v">${played}</div><div class="l">Matches recorded in ${esc(d.currentSeason)}</div></div>
       <div class="kpi"><div class="v">${scorer.total.g}</div><div class="l">Top scorer ${esc(liveKey)}</div><div class="s">${esc(scorer.name)}</div></div>
       <div class="kpi"><div class="v">${appsLeader.total.a}</div><div class="l">Most apps ${esc(liveKey)}</div><div class="s">${esc(appsLeader.name)}</div></div>
       <div class="kpi"><div class="v">${mostApps.total.a}</div><div class="l">Most apps at the club</div><div class="s">${esc(mostApps.name)}</div></div>
-      <div class="kpi"><div class="v">${b.seasons.length}</div><div class="l">Seasons tracked</div></div>
-      <div class="kpi"><div class="v">${titles}</div><div class="l">League titles</div></div>
+      <div class="kpi"><div class="v">${mostGoals.total.g}</div><div class="l">Most goals at the club</div><div class="s">${esc(mostGoals.name)}</div></div>
     </div>`;
 }
 
@@ -543,9 +545,10 @@ function matrixBlock(d){
       <div class="mhead"><div class="lab"></div><div>MW 1 → ${maxMw}</div></div>
       ${rows}
       <div class="legend">
-        <span><i class="mc w" style="background:var(--red)"></i>Win</span>
-        <span><i class="mc d" style="background:var(--brass);opacity:.55"></i>Draw</span>
-        <span><i class="mc l"></i>Loss</span>
+        <span><i class="mc w" style="background:var(--win)"></i>Win</span>
+        <span><i class="mc d" style="background:var(--draw)"></i>Draw</span>
+        <span><i class="mc l" style="background:var(--loss)"></i>Loss</span>
+        <span><i class="mc na" style="box-shadow:inset 0 0 0 1px var(--line)"></i>Not played</span>
         <span>🏆 League title</span>
       </div>
     </div>`;
@@ -584,7 +587,7 @@ function squadTable(d, set, key, dflt){
 }
 
 function pageSquad(d){
-  return head('Squad', 'Career at Arsenal',
+  return head('Squad', 'Arsenal squad statistics',
     'Every appearance and goal for the current squad, in all competitions, since they joined. Click a name for the season-by-season breakdown.')
     + kpiBlock(d)
     + `<div class="section-h"><h2>The squad</h2><span class="hint">by shirt number</span></div>`
@@ -680,23 +683,30 @@ function pageHistory(d){
   }).join('');
 
   // matchweek average strip
-  const avgMax = Math.max(...b.avg.filter(v => v !== null));
+  const avgPairs = b.avg.map((v, i) => ({mw: b.matchweeks[i], v})).filter(x => x.v !== null && x.v > 0);
+  const avgMax = Math.max(...avgPairs.map(x => x.v));
+  const avgMin = Math.min(...avgPairs.map(x => x.v));
+  const best = avgPairs.find(x => x.v === avgMax), worst = avgPairs.find(x => x.v === avgMin);
   const avgBars = b.avg.map((v, i) => {
-    if (v === null) return '';
+    if (v === null || v === 0) return '';
     const h = (v / avgMax) * 90;
-    return `<rect x="${i * 21}" y="${100 - h}" width="15" height="${h.toFixed(1)}" fill="var(--red)" opacity=".8">
-      <title>MW ${b.matchweeks[i]} · ${v.toFixed(2)} pts on average</title></rect>`;
+    const fill = v === avgMax ? 'var(--win)' : v === avgMin ? 'var(--loss)' : 'var(--brass)';
+    const op = (v === avgMax || v === avgMin) ? '1' : '.45';
+    return `<rect x="${i * 21}" y="${100 - h}" width="15" height="${h.toFixed(1)}" fill="${fill}" opacity="${op}">
+      <title>MW ${b.matchweeks[i]} · ${v.toFixed(2)} pts on average</title></rect>
+      ${(v === avgMax || v === avgMin) ? `<text class="axistext" x="${i * 21 + 7.5}" y="${(100 - h - 5).toFixed(1)}"
+        text-anchor="middle" fill="${fill}">${b.matchweeks[i]}</text>` : ''}`;
   }).join('');
 
   const mg = b.managers.map(m => {
     const tot = m.w + m.d + m.l;
     return `<tr><td class="l name">${esc(m.name)}</td>
       <td class="num">${tot}</td><td class="num">${m.w}</td><td class="num">${m.d}</td><td class="num">${m.l}</td>
-      <td class="num" style="color:var(--brass)">${(m.w / tot * 100).toFixed(1)}%</td>
+      <td class="num" style="color:var(--win)">${(m.w / tot * 100).toFixed(1)}%</td>
       <td style="width:180px;padding-left:14px"><div style="display:flex;height:9px">
-        <div style="width:${m.w / tot * 100}%;background:var(--red)"></div>
-        <div style="width:${m.d / tot * 100}%;background:var(--brass);opacity:.6"></div>
-        <div style="width:${m.l / tot * 100}%;background:var(--ink3)"></div></div></td></tr>`;
+        <div style="width:${m.w / tot * 100}%;background:var(--win)"></div>
+        <div style="width:${m.d / tot * 100}%;background:var(--draw)"></div>
+        <div style="width:${m.l / tot * 100}%;background:var(--loss)"></div></div></td></tr>`;
   }).join('');
 
   return head('Archive', 'Season history',
@@ -715,10 +725,20 @@ function pageHistory(d){
         <text class="axistext" x="${pPL - 8}" y="${py(p) + 3}" text-anchor="end">${p}</text>`).join('')}
       <path d="${posPath}" fill="none" stroke="var(--red)" stroke-width="1.5" opacity=".65"/>${posDots}${posLabels}</svg></div>
 
-    <div class="section-h"><h2>Kindest matchweek</h2><span class="hint">average points in each matchweek across every season</span></div>
+    <div class="section-h"><h2>Kindest matchweek</h2><span class="hint">average points in each matchweek, ${b.seasons.length} seasons</span></div>
+    <div class="kpis" style="margin-bottom:14px">
+      <div class="kpi"><div class="v" style="color:var(--win)">${best.v.toFixed(2)}</div>
+        <div class="l">Best matchweek</div><div class="s">Matchweek ${best.mw}</div></div>
+      <div class="kpi"><div class="v" style="color:var(--loss)">${worst.v.toFixed(2)}</div>
+        <div class="l">Worst matchweek</div><div class="s">Matchweek ${worst.mw}</div></div>
+      <div class="kpi"><div class="v">${(avgPairs.reduce((t, x) => t + x.v, 0) / avgPairs.length).toFixed(2)}</div>
+        <div class="l">Average matchweek</div><div class="s">across all ${avgPairs.length}</div></div>
+      <div class="kpi"><div class="v">${(avgMax - avgMin).toFixed(2)}</div>
+        <div class="l">Spread</div><div class="s">best minus worst</div></div>
+    </div>
     <div class="chartbox"><svg viewBox="0 0 ${b.avg.length * 21} 110" role="img" aria-label="Average points per matchweek">
       ${avgBars}</svg>
-      <div class="legend"><span>Matchweek 1 on the left, ${maxMw} on the right. Tallest bar is the matchweek Arsenal has historically won most often.</span></div></div>
+      <div class="legend"><span>Matchweek 1 on the left, ${maxMw} on the right. Green is the matchweek Arsenal has taken most points from, red the one that has cost most.</span></div></div>
 
     <div class="section-h"><h2>Managers</h2><span class="hint">league record</span></div>
     <div class="tablewrap"><table><thead><tr>
