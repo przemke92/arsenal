@@ -523,11 +523,19 @@ function parseWorkbook(wb){
   data.records = parseRecords(aoa('All-time records'));
   data.breakdown = parseBreakdown(aoa('Season Breakdown'));
 
+  /* Read the date off the local clock, not toISOString(): the workbook stores a
+     naive date, and converting it to UTC shifts it a day back east of Greenwich. */
   let asOf = null;
   const ag = aoa('Apps & Goals');
-  for (let r = 0; r < 4; r++) for (let c = 14; c < 20; c++){
-    const v = at(ag, r, c);
-    if (v instanceof Date) asOf = v.toISOString().slice(0, 10);
+  for (let r = 0; r < 4 && !asOf; r++){
+    for (let c = 0; c < 40; c++){
+      const v = at(ag, r, c);
+      if (v instanceof Date && !isNaN(v)){
+        asOf = v.getFullYear() + '-' + String(v.getMonth() + 1).padStart(2, '0')
+          + '-' + String(v.getDate()).padStart(2, '0');
+        break;
+      }
+    }
   }
   data.meta = {asOf, source: 'arsenal_stats.xlsx'};
   return data;
