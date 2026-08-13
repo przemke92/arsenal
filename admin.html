@@ -92,6 +92,23 @@ const N = v => {
   return isNaN(n) ? 0 : n;
 };
 const at = (aoa, r, c) => (aoa[r] && aoa[r][c] !== undefined) ? aoa[r][c] : null;
+const POS_WORD = {goalkeeper:'GK', keeper:'GK', defender:'DF', defence:'DF', midfielder:'MF',
+  midfield:'MF', forward:'FW', attacker:'FW', striker:'ST', winger:'W', back:'B', centre:'C', center:'C'};
+const posShort = p => {
+  const v = T(p); if (!v) return '';
+  if (v.length <= 3) return v.toUpperCase();
+  const words = v.split(/[\s\-\/]+/).filter(Boolean);
+  if (words.length === 1) return POS_WORD[words[0].toLowerCase()] || v.slice(0, 3).toUpperCase();
+  return words.map(w => POS_WORD[w.toLowerCase()] || w[0]).join('').slice(0, 3).toUpperCase();
+};
+const posGroup = p => {
+  const v = T(p).toLowerCase(); if (!v) return '';
+  if (/goal|keeper|^gk/.test(v)) return 'GK';
+  if (/def|back|^cb|^rb|^lb|^df/.test(v)) return 'DF';
+  if (/mid|^cm|^dm|^am|^mf/.test(v)) return 'MF';
+  if (/for|attack|strik|wing|^st|^fw|^rw|^lw|^cf/.test(v)) return 'FW';
+  return '';
+};
 const NAT_RAW = 'ENG::England|SCO::Scotland|WAL::Wales|NIR::Northern Ireland|IRL:IE:Republic of Ireland|FRA:FR:France|ESP:ES:Spain|POR:PT:Portugal|NED:NL:Netherlands|GER:DE:Germany|ITA:IT:Italy|BEL:BE:Belgium|SUI:CH:Switzerland|AUT:AT:Austria|DEN:DK:Denmark|NOR:NO:Norway|SWE:SE:Sweden|FIN:FI:Finland|ISL:IS:Iceland|POL:PL:Poland|CZE:CZ:Czechia|SVK:SK:Slovakia|HUN:HU:Hungary|ROU:RO:Romania|BUL:BG:Bulgaria|GRE:GR:Greece|TUR:TR:Turkey|CRO:HR:Croatia|SRB:RS:Serbia|SLO:SI:Slovenia|BIH:BA:Bosnia and Herzegovina|MKD:MK:North Macedonia|MNE:ME:Montenegro|ALB:AL:Albania|KOS:XK:Kosovo|UKR:UA:Ukraine|RUS:RU:Russia|BLR:BY:Belarus|LTU:LT:Lithuania|LVA:LV:Latvia|EST:EE:Estonia|GEO:GE:Georgia|ARM:AM:Armenia|AZE:AZ:Azerbaijan|CYP:CY:Cyprus|LUX:LU:Luxembourg|MLT:MT:Malta|ISR:IL:Israel|BRA:BR:Brazil|ARG:AR:Argentina|URU:UY:Uruguay|CHI:CL:Chile|COL:CO:Colombia|ECU:EC:Ecuador|PER:PE:Peru|PAR:PY:Paraguay|BOL:BO:Bolivia|VEN:VE:Venezuela|USA:US:United States|CAN:CA:Canada|MEX:MX:Mexico|CRC:CR:Costa Rica|JAM:JM:Jamaica|TRI:TT:Trinidad and Tobago|HON:HN:Honduras|PAN:PA:Panama|GUA:GT:Guatemala|HAI:HT:Haiti|CUB:CU:Cuba|NGA:NG:Nigeria|GHA:GH:Ghana|CIV:CI:Ivory Coast|SEN:SN:Senegal|CMR:CM:Cameroon|EGY:EG:Egypt|MAR:MA:Morocco|ALG:DZ:Algeria|TUN:TN:Tunisia|MLI:ML:Mali|BFA:BF:Burkina Faso|GUI:GN:Guinea|COD:CD:DR Congo|CGO:CG:Congo|ANG:AO:Angola|RSA:ZA:South Africa|ZIM:ZW:Zimbabwe|ZAM:ZM:Zambia|KEN:KE:Kenya|UGA:UG:Uganda|GAB:GA:Gabon|TOG:TG:Togo|BEN:BJ:Benin|CPV:CV:Cape Verde|GAM:GM:Gambia|SLE:SL:Sierra Leone|LBR:LR:Liberia|MTN:MR:Mauritania|NIG:NE:Niger|EQG:GQ:Equatorial Guinea|MOZ:MZ:Mozambique|MAD:MG:Madagascar|JPN:JP:Japan|KOR:KR:South Korea|CHN:CN:China|AUS:AU:Australia|NZL:NZ:New Zealand|IRN:IR:Iran|IRQ:IQ:Iraq|KSA:SA:Saudi Arabia|UAE:AE:United Arab Emirates|QAT:QA:Qatar|JOR:JO:Jordan|UZB:UZ:Uzbekistan|IND:IN:India|THA:TH:Thailand|VIE:VN:Vietnam|PHI:PH:Philippines|IDN:ID:Indonesia';
 const NAT = {};
 NAT_RAW.split('|').forEach(row => {
@@ -136,9 +153,27 @@ function findHeader(aoa){
   return null;
 }
 function headerRow(aoa){ const h = findHeader(aoa); return h ? h.row : -1; }
+/* If the header text is not one we recognise, work out which column holds the
+   position and which the nationality by looking at what is actually in them. */
+function sniffIdentity(aoa, h, id){
+  const rows = [];
+  for (let r = h + 1; r < Math.min(aoa.length, h + 60); r++) rows.push(r);
+  const limit = Math.min(id.name + 5, 10);
+  for (let c = 0; c <= limit; c++){
+    if (c === id.name || c === id.pos || c === id.nat) continue;
+    const vals = rows.map(r => T(at(aoa, r, c))).filter(Boolean);
+    if (vals.length < 3) continue;
+    const natHits = vals.filter(v => natEntry(v)).length;
+    const posHits = vals.filter(v => posGroup(v)).length;
+    if (id.nat === undefined && natHits / vals.length >= 0.6 && natHits >= posHits){ id.nat = c; continue; }
+    if (id.pos === undefined && posHits / vals.length >= 0.6){ id.pos = c; }
+  }
+  return id;
+}
+
 function parseSquadSheet(aoa){
   const hd = findHeader(aoa); if (!hd) return null;
-  const h = hd.row, id = hd.cols;
+  const h = hd.row, id = sniffIdentity(aoa, hd.row, hd.cols);
   const above = h - 1, comps = [];
   const width = Math.max(...aoa.slice(0, h + 1).map(r => (r || []).length));
   let c = Math.max(id.name, id.pos === undefined ? 0 : id.pos, id.nat === undefined ? 0 : id.nat) + 1;
@@ -260,6 +295,8 @@ function parseWorkbook(wb){
     ? XLSX.utils.sheet_to_json(wb.Sheets[name], {header: 1, raw: true, defval: null, blankrows: true}) : null;
   const data = {};
   data.career = parseSquadSheet(aoa('Apps & Goals'));
+  const agHd = findHeader(aoa('Apps & Goals'));
+  data.idCols = agHd ? sniffIdentity(aoa('Apps & Goals'), agHd.row, agHd.cols) : {};
   const seasons = {};
   wb.SheetNames.filter(n => n.indexOf('Apps & Goals ') === 0).forEach(n => {
     seasons[n.replace('Apps & Goals ', '').trim()] = parseSquadSheet(aoa(n));
@@ -332,12 +369,16 @@ function report(wb, d, fileName, fileSize){
         const withPos = d.career.players.filter(p => T(p.pos)).length;
         const withNat = d.career.players.filter(p => T(p.nat)).length;
         const total = d.career.players.length;
-        if (!withPos && !withNat) return check('warn', 'No position or nationality columns found',
-          'Add columns headed Pos and Nat to the squad sheet and they will appear on the site');
+        const col = i => i === undefined ? '?' : String.fromCharCode(65 + i);
+        const where = 'name in column ' + col(d.idCols.name)
+          + ', position in ' + col(d.idCols.pos) + ', nationality in ' + col(d.idCols.nat);
+        if (!withPos && !withNat) return check('bad', 'No position or nationality found',
+          'Read ' + where + '. Check the Apps & Goals sheet: values should look like GK, DF, MF, FW and ENG, ESP, NED.');
         const positions = [...new Set(d.career.players.map(p => T(p.pos)).filter(Boolean))];
         const nations = [...new Set(d.career.players.map(p => T(p.nat)).filter(Boolean))]
           .map(n => (flagOf(n) || '') + ' ' + natName(n));
-        return check(withPos === total ? 'ok' : 'warn', withPos + ' of ' + total + ' players have a position',
+        return check('ok', 'Profile columns detected', where)
+          + check(withPos === total ? 'ok' : 'warn', withPos + ' of ' + total + ' players have a position',
             positions.join(' · '))
           + check(withNat === total ? 'ok' : 'warn', withNat + ' of ' + total + ' players have a nationality',
             nations.join(' · '));

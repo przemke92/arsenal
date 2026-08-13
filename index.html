@@ -81,27 +81,42 @@ h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:-.005em;text-
 
 /* ---------- tables ---------- */
 .tablewrap{overflow-x:auto;border:1px solid var(--line)}
-.fixed{table-layout:fixed;min-width:954px;--stickyw:42px}
-.fixed col.c-no{width:42px}
+.fixed{table-layout:fixed;min-width:954px;--w-no:42px;--w-pos:46px;--w-nat:44px}
+.fixed col.c-no{width:var(--w-no)}
 .fixed col.c-name{width:200px}
-.fixed col.c-pos{width:46px}
-.fixed col.c-nat{width:44px}
+.fixed col.c-pos{width:var(--w-pos)}
+.fixed col.c-nat{width:var(--w-nat)}
 .fixed col.c-stat{width:46px}
 .fixed col.c-tot{width:54px}
 .fixed col.c-ratio{width:54px}
-.narrow .fixed{min-width:420px;--stickyw:36px}
-.narrow .fixed col.c-no{width:36px}
+.narrow .fixed{min-width:420px;--w-no:36px}
+.narrow .fixed col.c-no{width:var(--w-no)}
 .narrow .fixed col.c-name{width:150px}
 .narrow .fixed col.c-tot{width:58px}
 .narrow .fixed col.c-ratio{width:52px}
 
-/* first two columns stay put while the stats scroll sideways */
+/* the identity columns stay put while the stats scroll sideways */
 .fixed th:nth-child(1),.fixed td:nth-child(1){position:sticky;left:0;z-index:2}
-.fixed th:nth-child(2),.fixed td:nth-child(2){position:sticky;left:var(--stickyw);z-index:2}
-.fixed td:nth-child(2),.fixed th:nth-child(2){box-shadow:1px 0 0 var(--line)}
-.fixed td:nth-child(1),.fixed td:nth-child(2){background:var(--ink)}
-.fixed th:nth-child(1),.fixed th:nth-child(2){background:var(--ink2);z-index:3}
-.fixed tbody tr:hover td:nth-child(1),.fixed tbody tr:hover td:nth-child(2){background:var(--ink2)}
+.fixed td:nth-child(1){background:var(--ink)}
+.fixed th:nth-child(1){background:var(--ink2);z-index:3}
+.fixed tbody tr:hover td:nth-child(1){background:var(--ink2)}
+
+/* records: # then player */
+.fixed.rec th:nth-child(2),.fixed.rec td:nth-child(2){position:sticky;left:var(--w-no);z-index:2;
+  box-shadow:1px 0 0 var(--line)}
+.fixed.rec td:nth-child(2){background:var(--ink)}
+.fixed.rec th:nth-child(2){background:var(--ink2);z-index:3}
+.fixed.rec tbody tr:hover td:nth-child(2){background:var(--ink2)}
+
+/* squad: # then position, nationality and player */
+.fixed.sq th:nth-child(2),.fixed.sq td:nth-child(2){position:sticky;left:var(--w-no);z-index:2}
+.fixed.sq th:nth-child(3),.fixed.sq td:nth-child(3){position:sticky;left:calc(var(--w-no) + var(--w-pos));z-index:2}
+.fixed.sq th:nth-child(4),.fixed.sq td:nth-child(4){position:sticky;
+  left:calc(var(--w-no) + var(--w-pos) + var(--w-nat));z-index:2;box-shadow:1px 0 0 var(--line)}
+.fixed.sq td:nth-child(2),.fixed.sq td:nth-child(3),.fixed.sq td:nth-child(4){background:var(--ink)}
+.fixed.sq th:nth-child(2),.fixed.sq th:nth-child(3),.fixed.sq th:nth-child(4){background:var(--ink2);z-index:3}
+.fixed.sq tbody tr:hover td:nth-child(2),.fixed.sq tbody tr:hover td:nth-child(3),
+.fixed.sq tbody tr:hover td:nth-child(4){background:var(--ink2)}
 .fixed td,.fixed th{overflow:hidden}
 .fixed td.l,.fixed th.l{text-overflow:ellipsis;white-space:nowrap}
 .fixed td.num{padding-left:4px;padding-right:7px}
@@ -234,16 +249,18 @@ select:focus,input:focus,button:focus-visible,a:focus-visible{outline:2px solid 
 .topbar{display:none}
 
 @media (max-width:620px){
-  .fixed{min-width:848px;--stickyw:30px}
+  .fixed.sq th:nth-child(2),.fixed.sq td:nth-child(2),
+  .fixed.sq th:nth-child(3),.fixed.sq td:nth-child(3){display:none}
+  .fixed.sq{--w-pos:0px;--w-nat:0px}
+  .fixed{min-width:790px;--w-no:30px;--w-pos:40px;--w-nat:36px}
   .fixed col.c-no{width:30px}
   .fixed col.c-name{width:124px}
   .fixed col.c-tot{width:48px}
   .fixed col.c-ratio{width:48px}
-  .narrow .fixed{min-width:340px;--stickyw:30px}
+  .narrow .fixed{min-width:340px;--w-no:30px}
   .narrow .fixed col.c-no{width:30px}
   .narrow .fixed col.c-name{width:110px}
-  .fixed col.c-pos{width:40px}
-  .fixed col.c-nat{width:38px}
+
   .fixed td.l,.fixed th.l{font-size:12px}
   .fixed td.name{white-space:normal;text-overflow:clip;line-height:1.15;padding-top:5px;padding-bottom:5px}
   .fixed td.name .gn{display:block;font-size:11px}
@@ -298,8 +315,8 @@ const at = (aoa, r, c) => (aoa[r] && aoa[r][c] !== undefined) ? aoa[r][c] : null
    a Position or Nationality column into the sheet never breaks the parse. */
 const HDR = {
   name: ['name', 'player'],
-  pos:  ['pos', 'position'],
-  nat:  ['nat', 'nationality', 'country', 'nationalities']
+  pos:  ['pos', 'position', 'poz', 'pozycja', 'role'],
+  nat:  ['nat', 'nationality', 'country', 'nationalities', 'nar', 'nation', 'kraj', 'narodowosc']
 };
 function findHeader(aoa){
   for (let r = 0; r < 8; r++){
@@ -319,9 +336,27 @@ function findHeader(aoa){
 }
 function headerRow(aoa){ const h = findHeader(aoa); return h ? h.row : -1; }
 
+/* If the header text is not one we recognise, work out which column holds the
+   position and which the nationality by looking at what is actually in them. */
+function sniffIdentity(aoa, h, id){
+  const rows = [];
+  for (let r = h + 1; r < Math.min(aoa.length, h + 60); r++) rows.push(r);
+  const limit = Math.min(id.name + 5, 10);
+  for (let c = 0; c <= limit; c++){
+    if (c === id.name || c === id.pos || c === id.nat) continue;
+    const vals = rows.map(r => T(at(aoa, r, c))).filter(Boolean);
+    if (vals.length < 3) continue;
+    const natHits = vals.filter(v => natEntry(v)).length;
+    const posHits = vals.filter(v => posGroup(v)).length;
+    if (id.nat === undefined && natHits / vals.length >= 0.6 && natHits >= posHits){ id.nat = c; continue; }
+    if (id.pos === undefined && posHits / vals.length >= 0.6){ id.pos = c; }
+  }
+  return id;
+}
+
 function parseSquadSheet(aoa){
   const hd = findHeader(aoa); if (!hd) return null;
-  const h = hd.row, id = hd.cols;
+  const h = hd.row, id = sniffIdentity(aoa, hd.row, hd.cols);
   const above = h - 1, comps = [];
   const width = Math.max(...aoa.slice(0, h + 1).map(r => (r || []).length));
   let c = Math.max(id.name, id.pos === undefined ? 0 : id.pos, id.nat === undefined ? 0 : id.nat) + 1;
@@ -462,6 +497,8 @@ function parseWorkbook(wb){
     : null;
   const data = {};
   data.career = parseSquadSheet(aoa('Apps & Goals'));
+  const agHd = findHeader(aoa('Apps & Goals'));
+  data.idCols = agHd ? sniffIdentity(aoa('Apps & Goals'), agHd.row, agHd.cols) : {};
 
   const seasons = {};
   wb.SheetNames.filter(n => n.indexOf('Apps & Goals ') === 0).forEach(n => {
@@ -733,32 +770,30 @@ function squadTable(d, set, key, dflt){
   const th = (col, label, cls) =>
     `<th class="${cls || ''} sortable ${s.col === col ? 'sorted' : ''}" data-sort="${col}" data-key="${key}">${label}${s.col === col ? (s.dir < 0 ? ' ↓' : ' ↑') : ''}</th>`;
   const cols = `<colgroup>
-      <col class="c-no"><col class="c-name">
+      <col class="c-no"><col class="c-pos"><col class="c-nat"><col class="c-name">
       ${comps.map(() => '<col class="c-stat"><col class="c-stat">').join('')}
       <col class="c-tot"><col class="c-tot"><col class="c-ratio">
-      <col class="c-pos"><col class="c-nat">
     </colgroup>`;
-  return `<div class="tablewrap"><table class="fixed">${cols}
+  return `<div class="tablewrap"><table class="fixed sq">${cols}
     <thead>
-      <tr>${th('no', '#')}${th('name', 'Player', 'l')}
+      <tr>${th('no', '#')}${th('pos', 'Pos', 'c')}${th('nat', 'Nat', 'c')}${th('name', 'Player', 'l')}
       ${comps.map(c => `<th class="grp" colspan="2">${esc(c)}</th>`).join('')}
-      <th class="grp" colspan="2">Total</th>${th('ratio', 'G/A')}
-      <th class="grp" colspan="2">Profile</th></tr>
-      <tr><th></th><th class="l"></th>
+      <th class="grp" colspan="2">Total</th>${th('ratio', 'G/A')}</tr>
+      <tr><th></th><th></th><th></th><th class="l"></th>
       ${comps.map(c => th('a_' + c, 'Apps', 'c') + th('g_' + c, 'Gls', 'c')).join('')}
-      ${th('apps', 'Apps')}${th('goals', 'Gls')}<th></th>
-      ${th('pos', 'Pos', 'c')}${th('nat', 'Nat', 'c')}</tr>
+      ${th('apps', 'Apps')}${th('goals', 'Gls')}<th></th></tr>
     </thead>
     <tbody>${rows.map(p => {
       const pr = prof(d, p);
       return `<tr class="clickable" data-player="${esc(p.name)}">
-      <td class="num shirt">${esc(p.no)}</td><td class="l name">${nameHTML(p.name)}</td>
+      <td class="num shirt">${esc(p.no)}</td>
+      <td class="c pos" title="${esc(pr.pos)}">${esc(posShort(pr.pos)) || '·'}</td>
+      <td class="c nat">${pr.nat ? flagImg(pr.nat) : '·'}</td>
+      <td class="l name">${nameHTML(p.name)}</td>
       ${comps.map(c => cellNum(p.comps[c].a) + cellNum(p.comps[c].g, 'goal')).join('')}
       <td class="num" style="border-left:1px solid var(--line)"><b>${p.total.a}</b></td>
       <td class="num goal"><b>${p.total.g || '·'}</b></td>
       <td class="num" style="color:var(--muted)">${ratio(p.total.g, p.total.a)}</td>
-      <td class="c pos" title="${esc(pr.pos)}">${esc(posShort(pr.pos)) || '·'}</td>
-      <td class="c nat">${pr.nat ? flagImg(pr.nat) : '·'}</td>
     </tr>`;}).join('')}</tbody></table></div>`;
 }
 
@@ -968,7 +1003,7 @@ function pageExPlayers(d){
 
 function pageRecords(d){
   const r = d.records;
-  const list = (rows, val, other, otherLabel, label) => `<div class="tablewrap narrow"><table class="fixed">
+  const list = (rows, val, other, otherLabel, label) => `<div class="tablewrap narrow"><table class="fixed rec">
     <colgroup><col class="c-no"><col class="c-name"><col class="c-tot"><col class="c-tot"><col class="c-ratio"></colgroup>
     <thead><tr><th>#</th><th class="l">Player</th><th>${label}</th><th>${otherLabel}</th><th>G/A</th></tr></thead>
     <tbody>${rows.map(x => `<tr>
