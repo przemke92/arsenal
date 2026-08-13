@@ -57,6 +57,15 @@ td.r,th.r{text-align:right}
 .check.bad .mark{color:var(--red)}
 .check .txt small{display:block;color:var(--muted);font-family:var(--mono);font-size:11px;margin-top:2px}
 .hidden{display:none}
+.tokenrow{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:14px}
+#tok{background:var(--ink2);color:var(--parchment);border:1px solid var(--line);padding:9px 11px;
+  font-family:var(--mono);font-size:12px;border-radius:2px;min-width:280px}
+.remember{font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.commitmsg{font-family:var(--mono);font-size:12px;margin-top:12px;min-height:18px}
+.commitmsg.working{color:var(--brass)}
+.commitmsg.good{color:var(--ok)}
+.commitmsg.bad{color:var(--red)}
+.btn:disabled{opacity:.5;cursor:default}
 .note{border-left:2px solid var(--line);padding:2px 0 2px 14px;color:var(--muted);margin:20px 0;font-size:14px}
 .foot{margin-top:50px;padding-top:18px;border-top:1px solid var(--line);
   font-family:var(--mono);font-size:11px;color:var(--muted)}
@@ -333,6 +342,49 @@ function parseWorkbook(wb){
 }
 
 /* ---------- report ---------- */
+const REPO = {owner: 'przemke92', repo: 'arsenal', branch: 'main', path: 'data/arsenal_stats.xlsx'};
+const TOKEN_KEY = 'arsenal-gh-token';
+let lastFile = null;
+
+const b64 = bytes => {
+  let bin = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  return btoa(bin);
+};
+const store = {
+  get(){ try{ return localStorage.getItem(TOKEN_KEY) || ''; }catch(e){ return ''; } },
+  set(v){ try{ localStorage.setItem(TOKEN_KEY, v); }catch(e){} },
+  clear(){ try{ localStorage.removeItem(TOKEN_KEY); }catch(e){} }
+};
+
+async function commitToGitHub(token, say){
+  const api = `https://api.github.com/repos/${REPO.owner}/${REPO.repo}/contents/${REPO.path}`;
+  const headers = {Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json'};
+  say('Checking the current file…');
+  let sha = null;
+  const probe = await fetch(api + '?ref=' + REPO.branch, {headers});
+  if (probe.ok) sha = (await probe.json()).sha;
+  else if (probe.status === 401) throw new Error('That token was rejected. Check it has not expired.');
+  else if (probe.status === 403) throw new Error('Token lacks permission to write to this repository.');
+  else if (probe.status !== 404) throw new Error('GitHub replied ' + probe.status + ' when reading the file.');
+  say(sha ? 'Uploading the new version…' : 'Creating the file…');
+  const stamp = new Date();
+  const body = {
+    message: 'Update stats ' + stamp.getFullYear() + '-'
+      + String(stamp.getMonth() + 1).padStart(2, '0') + '-' + String(stamp.getDate()).padStart(2, '0'),
+    content: b64(lastFile.bytes), branch: REPO.branch
+  };
+  if (sha) body.sha = sha;
+  const res = await fetch(api, {method: 'PUT', headers, body: JSON.stringify(body)});
+  if (!res.ok){
+    let detail = '';
+    try{ detail = (await res.json()).message || ''; }catch(e){}
+    throw new Error('GitHub replied ' + res.status + (detail ? ': ' + detail : ''));
+  }
+  return (await res.json()).commit;
+}
+
 const REQUIRED = ['Apps & Goals', 'Premier League', 'Europe', 'FA Cup', 'League Cup',
   'Other (CS)', 'Ex-Players', 'All-time records', 'Season Breakdown'];
 let parsed = null;
@@ -427,11 +479,24 @@ function report(wb, d, fileName, fileSize){
 
     <h2>Looks right?</h2>
     <p class="lede">Open the dashboard with this file to click through it. The preview lives in this tab only,
-    nobody else sees it, and the live site keeps reading data/arsenal_stats.xlsx until you commit.</p>
+    nobody else sees it, and the live site keeps reading the committed file until you publish.</p>
+    <div class="row"><button class="btn" id="open">Open the dashboard with this file</button></div>
+
+    <h2>Publish it</h2>
+    <p class="lede">This commits the file straight to ${esc(REPO.owner)}/${esc(REPO.repo)} as
+    ${esc(REPO.path)}. No going to GitHub, no second upload.</p>
+    <div class="tokenrow">
+      <input type="password" id="tok" placeholder="GitHub token" value="${esc(store.get())}" autocomplete="off">
+      <label class="remember"><input type="checkbox" id="remember" ${store.get() ? 'checked' : ''}> remember on this device</label>
+    </div>
     <div class="row">
-      <button class="btn" id="open">Open the dashboard with this file</button>
-      <a class="btn ghost" href="https://github.com/przemke92/arsenal/upload/main/data" target="_blank" rel="noopener">Commit it on GitHub</a>
-    </div>`;
+      <button class="btn" id="commit">Commit to GitHub</button>
+      <a class="btn ghost" href="https://github.com/${esc(REPO.owner)}/${esc(REPO.repo)}/upload/${esc(REPO.branch)}/data" target="_blank" rel="noopener">Upload by hand instead</a>
+    </div>
+    <div id="commitmsg" class="commitmsg"></div>
+    <div class="note">The token needs to be a fine-grained personal access token, this repository only,
+    with Contents set to read and write. It is stored in this browser, never in the page source,
+    and never leaves your machine except to api.github.com.</div>`;
 }
 
 const out = document.getElementById('out');
@@ -440,9 +505,32 @@ function handle(file){
   fr.onload = () => {
     out.classList.remove('hidden');
     try{
-      const wb = XLSX.read(new Uint8Array(fr.result), {type: 'array', cellDates: true});
+      const bytes = new Uint8Array(fr.result);
+      lastFile = {name: file.name, bytes};
+      const wb = XLSX.read(bytes, {type: 'array', cellDates: true});
       parsed = parseWorkbook(wb);
       out.innerHTML = report(wb, parsed, file.name, file.size);
+      const commitBtn = document.getElementById('commit');
+      if (commitBtn) commitBtn.onclick = async () => {
+        const tok = document.getElementById('tok').value.trim();
+        const msg = document.getElementById('commitmsg');
+        const say = t => { msg.className = 'commitmsg working'; msg.textContent = t; };
+        if (!tok){ msg.className = 'commitmsg bad'; msg.textContent = 'Paste a token first.'; return; }
+        if (document.getElementById('remember').checked) store.set(tok); else store.clear();
+        commitBtn.disabled = true;
+        try{
+          const c = await commitToGitHub(tok, say);
+          msg.className = 'commitmsg good';
+          msg.innerHTML = 'Committed. GitHub Pages usually rebuilds within a minute. '
+            + `<a href="${'https://' + REPO.owner + '.github.io/' + REPO.repo + '/'}" target="_blank" rel="noopener">Open the dashboard</a>`
+            + (c && c.sha ? ` <span style="color:var(--muted)">(${c.sha.slice(0, 7)})</span>` : '');
+        }catch(e){
+          msg.className = 'commitmsg bad';
+          msg.textContent = e.message;
+        }
+        commitBtn.disabled = false;
+      };
+
       const btn = document.getElementById('open');
       if (btn) btn.onclick = () => {
         try{
