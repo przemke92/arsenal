@@ -249,22 +249,21 @@ select:focus,input:focus,button:focus-visible,a:focus-visible{outline:2px solid 
 .topbar{display:none}
 
 @media (max-width:620px){
-  .fixed.sq th:nth-child(2),.fixed.sq td:nth-child(2),
-  .fixed.sq th:nth-child(3),.fixed.sq td:nth-child(3){display:none}
-  .fixed.sq{--w-pos:0px;--w-nat:0px}
-  .fixed{min-width:790px;--w-no:30px;--w-pos:40px;--w-nat:36px}
-  .fixed col.c-no{width:30px}
-  .fixed col.c-name{width:124px}
+  /* Never display:none a table cell here. It removes the cell from the row and
+     shifts every later cell into the wrong column. Narrow the columns instead. */
+  .fixed{min-width:812px;--w-no:26px;--w-pos:32px;--w-nat:30px}
+  .fixed col.c-name{width:104px}
   .fixed col.c-tot{width:48px}
   .fixed col.c-ratio{width:48px}
   .narrow .fixed{min-width:340px;--w-no:30px}
-  .narrow .fixed col.c-no{width:30px}
-  .narrow .fixed col.c-name{width:110px}
-
+  .narrow .fixed col.c-name{width:120px}
+  .fixed td.pos{font-size:10px;padding-left:2px;padding-right:2px}
+  .fixed td.nat{padding-left:2px;padding-right:2px}
+  .fixed td.shirt{padding-left:4px;padding-right:4px}
+  img.flag{width:18px;height:13px}
   .fixed td.l,.fixed th.l{font-size:12px}
   .fixed td.name{white-space:normal;text-overflow:clip;line-height:1.15;padding-top:5px;padding-bottom:5px}
   .fixed td.name .gn{display:block;font-size:11px}
-  .fixed col.c-name{width:132px}
 }
 @media (max-width:900px){
   .shell{display:block}
