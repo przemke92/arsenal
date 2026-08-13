@@ -81,9 +81,11 @@ h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:-.005em;text-
 
 /* ---------- tables ---------- */
 .tablewrap{overflow-x:auto;border:1px solid var(--line)}
-.fixed{table-layout:fixed;min-width:864px;--stickyw:42px}
+.fixed{table-layout:fixed;min-width:954px;--stickyw:42px}
 .fixed col.c-no{width:42px}
 .fixed col.c-name{width:200px}
+.fixed col.c-pos{width:46px}
+.fixed col.c-nat{width:44px}
 .fixed col.c-stat{width:46px}
 .fixed col.c-tot{width:54px}
 .fixed col.c-ratio{width:54px}
@@ -117,6 +119,10 @@ thead th{
 }
 thead th.l,tbody td.l{text-align:left}
 thead th.c{text-align:center}
+tbody td.c{text-align:center}
+td.pos{font-family:var(--mono);font-size:11px;color:var(--brass);letter-spacing:.04em}
+td.nat{font-size:15px;line-height:1}
+.tag{font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:6px}
 thead th.sortable{cursor:pointer;user-select:none}
 thead th.sortable:hover{color:var(--parchment)}
 thead th.sorted{color:var(--brass)}
@@ -225,7 +231,7 @@ select:focus,input:focus,button:focus-visible,a:focus-visible{outline:2px solid 
 .topbar{display:none}
 
 @media (max-width:620px){
-  .fixed{min-width:770px;--stickyw:30px}
+  .fixed{min-width:848px;--stickyw:30px}
   .fixed col.c-no{width:30px}
   .fixed col.c-name{width:124px}
   .fixed col.c-tot{width:48px}
@@ -233,6 +239,8 @@ select:focus,input:focus,button:focus-visible,a:focus-visible{outline:2px solid 
   .narrow .fixed{min-width:340px;--stickyw:30px}
   .narrow .fixed col.c-no{width:30px}
   .narrow .fixed col.c-name{width:110px}
+  .fixed col.c-pos{width:40px}
+  .fixed col.c-nat{width:38px}
   .fixed td.l,.fixed th.l{font-size:12px}
   .fixed td.name{white-space:normal;text-overflow:clip;line-height:1.15;padding-top:5px;padding-bottom:5px}
   .fixed td.name .gn{display:block;font-size:11px}
@@ -283,16 +291,37 @@ const N = v => {
 };
 const at = (aoa, r, c) => (aoa[r] && aoa[r][c] !== undefined) ? aoa[r][c] : null;
 
-function headerRow(aoa){                       // the row whose 2nd column reads "Name"
-  for (let r = 0; r < 8; r++) if (T(at(aoa, r, 1)).toLowerCase() === 'name') return r;
-  return -1;
+/* Finds the header row and the identity columns wherever they sit, so inserting
+   a Position or Nationality column into the sheet never breaks the parse. */
+const HDR = {
+  name: ['name', 'player'],
+  pos:  ['pos', 'position'],
+  nat:  ['nat', 'nationality', 'country', 'nationalities']
+};
+function findHeader(aoa){
+  for (let r = 0; r < 8; r++){
+    for (let c = 0; c < 8; c++){
+      if (HDR.name.indexOf(T(at(aoa, r, c)).toLowerCase()) > -1){
+        const cols = {no: 0, name: c};
+        for (let cc = 0; cc < 12; cc++){
+          const lab = T(at(aoa, r, cc)).toLowerCase();
+          if (HDR.pos.indexOf(lab) > -1) cols.pos = cc;
+          if (HDR.nat.indexOf(lab) > -1) cols.nat = cc;
+        }
+        return {row: r, cols};
+      }
+    }
+  }
+  return null;
 }
+function headerRow(aoa){ const h = findHeader(aoa); return h ? h.row : -1; }
 
 function parseSquadSheet(aoa){
-  const h = headerRow(aoa); if (h < 0) return null;
+  const hd = findHeader(aoa); if (!hd) return null;
+  const h = hd.row, id = hd.cols;
   const above = h - 1, comps = [];
   const width = Math.max(...aoa.slice(0, h + 1).map(r => (r || []).length));
-  let c = 2;
+  let c = Math.max(id.name, id.pos === undefined ? 0 : id.pos, id.nat === undefined ? 0 : id.nat) + 1;
   while (c < width){
     const lab = T(at(aoa, h, c)).toLowerCase();
     if (lab.indexOf('apps') === 0 || lab === 'a'){
@@ -304,8 +333,10 @@ function parseSquadSheet(aoa){
   }
   const players = [];
   for (let r = h + 1; r < aoa.length; r++){
-    const name = T(at(aoa, r, 1)); if (!name) continue;
-    const p = {no: T(at(aoa, r, 0)), name, comps: {}};
+    const name = T(at(aoa, r, id.name)); if (!name) continue;
+    const p = {no: T(at(aoa, r, id.no)), name, comps: {}};
+    if (id.pos !== undefined) p.pos = T(at(aoa, r, id.pos));
+    if (id.nat !== undefined) p.nat = T(at(aoa, r, id.nat));
     comps.forEach(k => p.comps[k.name] = {a: N(at(aoa, r, k.col)), g: N(at(aoa, r, k.col + 1))});
     p.total = p.comps['Total'] || null;
     delete p.comps['Total'];
@@ -319,12 +350,13 @@ function parseSquadSheet(aoa){
 }
 
 function parseMatchSheet(aoa, key, label){
-  const h = headerRow(aoa); if (h < 0) return null;
+  const hd = findHeader(aoa); if (!hd) return null;
+  const h = hd.row, nameCol = hd.cols.name, noCol = hd.cols.no;
   const oppRow = h - 1, stageRow = h - 2;
   const width = Math.max(...aoa.slice(0, h + 1).map(r => (r || []).length));
   const fixtures = [], cols = [];
   let stage = '';
-  for (let c = 2; c < width; c++){
+  for (let c = nameCol + 1; c < width; c++){
     if (T(at(aoa, h, c)) === 'A'){
       if (stageRow >= 0){ const s = T(at(aoa, stageRow, c)); if (s) stage = s; }
       fixtures.push({opponent: T(at(aoa, oppRow, c)), stage});
@@ -333,10 +365,10 @@ function parseMatchSheet(aoa, key, label){
   }
   const players = [];
   for (let r = h + 1; r < aoa.length; r++){
-    const name = T(at(aoa, r, 1)); if (!name) continue;
+    const name = T(at(aoa, r, nameCol)); if (!name) continue;
     const cells = cols.map(c => ({a: N(at(aoa, r, c)), g: N(at(aoa, r, c + 1))}));
     players.push({
-      no: T(at(aoa, r, 0)), name, cells,
+      no: T(at(aoa, r, noCol)), name, cells,
       a: cells.reduce((s, x) => s + x.a, 0),
       g: cells.reduce((s, x) => s + x.g, 0)
     });
@@ -345,12 +377,13 @@ function parseMatchSheet(aoa, key, label){
 }
 
 function parseSingleMatchSheet(aoa, key, label){
-  const h = headerRow(aoa); if (h < 0) return null;
+  const hd = findHeader(aoa); if (!hd) return null;
+  const h = hd.row, nc = hd.cols.name;
   const players = [];
   for (let r = h + 1; r < aoa.length; r++){
-    const name = T(at(aoa, r, 1)); if (!name) continue;
-    const a = N(at(aoa, r, 2)), g = N(at(aoa, r, 3));
-    players.push({no: T(at(aoa, r, 0)), name, a, g, cells: [{a, g}]});
+    const name = T(at(aoa, r, nc)); if (!name) continue;
+    const a = N(at(aoa, r, nc + 1)), g = N(at(aoa, r, nc + 2));
+    players.push({no: T(at(aoa, r, hd.cols.no)), name, a, g, cells: [{a, g}]});
   }
   return {key, label, fixtures: [{opponent: '', stage: label}], players};
 }
@@ -444,6 +477,10 @@ function parseWorkbook(wb){
   ].filter(Boolean);
 
   data.exPlayers = parseSquadSheet(aoa('Ex-Players'));
+  data.profiles = {};
+  data.career.players.forEach(p => {
+    if (p.pos || p.nat) data.profiles[p.name] = {pos: p.pos || '', nat: p.nat || ''};
+  });
   data.records = parseRecords(aoa('All-time records'));
   data.breakdown = parseBreakdown(aoa('Season Breakdown'));
 
@@ -544,6 +581,46 @@ window.addEventListener('hashchange', () => { state.player = null; render(); });
 /* ============================================================
    4. VIEW HELPERS
    ============================================================ */
+const POS_WORD = {goalkeeper:'GK', keeper:'GK', defender:'DF', defence:'DF', midfielder:'MF',
+  midfield:'MF', forward:'FW', attacker:'FW', striker:'ST', winger:'W', back:'B', centre:'C', center:'C'};
+const posShort = p => {
+  const v = T(p); if (!v) return '';
+  if (v.length <= 3) return v.toUpperCase();
+  const words = v.split(/[\s\-\/]+/).filter(Boolean);
+  if (words.length === 1) return POS_WORD[words[0].toLowerCase()] || v.slice(0, 3).toUpperCase();
+  return words.map(w => POS_WORD[w.toLowerCase()] || w[0]).join('').slice(0, 3).toUpperCase();
+};
+const posGroup = p => {
+  const v = T(p).toLowerCase(); if (!v) return '';
+  if (/goal|keeper|^gk/.test(v)) return 'GK';
+  if (/def|back|^cb|^rb|^lb|^df/.test(v)) return 'DF';
+  if (/mid|^cm|^dm|^am|^mf/.test(v)) return 'MF';
+  if (/for|attack|strik|wing|^st|^fw|^rw|^lw|^cf/.test(v)) return 'FW';
+  return '';
+};
+const NAT_RAW = 'ENG::England|SCO::Scotland|WAL::Wales|NIR::Northern Ireland|IRL:IE:Republic of Ireland|FRA:FR:France|ESP:ES:Spain|POR:PT:Portugal|NED:NL:Netherlands|GER:DE:Germany|ITA:IT:Italy|BEL:BE:Belgium|SUI:CH:Switzerland|AUT:AT:Austria|DEN:DK:Denmark|NOR:NO:Norway|SWE:SE:Sweden|FIN:FI:Finland|ISL:IS:Iceland|POL:PL:Poland|CZE:CZ:Czechia|SVK:SK:Slovakia|HUN:HU:Hungary|ROU:RO:Romania|BUL:BG:Bulgaria|GRE:GR:Greece|TUR:TR:Turkey|CRO:HR:Croatia|SRB:RS:Serbia|SLO:SI:Slovenia|BIH:BA:Bosnia and Herzegovina|MKD:MK:North Macedonia|MNE:ME:Montenegro|ALB:AL:Albania|KOS:XK:Kosovo|UKR:UA:Ukraine|RUS:RU:Russia|BLR:BY:Belarus|LTU:LT:Lithuania|LVA:LV:Latvia|EST:EE:Estonia|GEO:GE:Georgia|ARM:AM:Armenia|AZE:AZ:Azerbaijan|CYP:CY:Cyprus|LUX:LU:Luxembourg|MLT:MT:Malta|ISR:IL:Israel|BRA:BR:Brazil|ARG:AR:Argentina|URU:UY:Uruguay|CHI:CL:Chile|COL:CO:Colombia|ECU:EC:Ecuador|PER:PE:Peru|PAR:PY:Paraguay|BOL:BO:Bolivia|VEN:VE:Venezuela|USA:US:United States|CAN:CA:Canada|MEX:MX:Mexico|CRC:CR:Costa Rica|JAM:JM:Jamaica|TRI:TT:Trinidad and Tobago|HON:HN:Honduras|PAN:PA:Panama|GUA:GT:Guatemala|HAI:HT:Haiti|CUB:CU:Cuba|NGA:NG:Nigeria|GHA:GH:Ghana|CIV:CI:Ivory Coast|SEN:SN:Senegal|CMR:CM:Cameroon|EGY:EG:Egypt|MAR:MA:Morocco|ALG:DZ:Algeria|TUN:TN:Tunisia|MLI:ML:Mali|BFA:BF:Burkina Faso|GUI:GN:Guinea|COD:CD:DR Congo|CGO:CG:Congo|ANG:AO:Angola|RSA:ZA:South Africa|ZIM:ZW:Zimbabwe|ZAM:ZM:Zambia|KEN:KE:Kenya|UGA:UG:Uganda|GAB:GA:Gabon|TOG:TG:Togo|BEN:BJ:Benin|CPV:CV:Cape Verde|GAM:GM:Gambia|SLE:SL:Sierra Leone|LBR:LR:Liberia|MTN:MR:Mauritania|NIG:NE:Niger|EQG:GQ:Equatorial Guinea|MOZ:MZ:Mozambique|MAD:MG:Madagascar|JPN:JP:Japan|KOR:KR:South Korea|CHN:CN:China|AUS:AU:Australia|NZL:NZ:New Zealand|IRN:IR:Iran|IRQ:IQ:Iraq|KSA:SA:Saudi Arabia|UAE:AE:United Arab Emirates|QAT:QA:Qatar|JOR:JO:Jordan|UZB:UZ:Uzbekistan|IND:IN:India|THA:TH:Thailand|VIE:VN:Vietnam|PHI:PH:Philippines|IDN:ID:Indonesia';
+const NAT = {};
+NAT_RAW.split('|').forEach(row => {
+  const [code, iso, name] = row.split(':');
+  NAT[code] = {iso, name};
+  NAT[name.toLowerCase()] = {iso, name, code};
+});
+const natEntry = nat => {
+  const v = T(nat); if (!v) return null;
+  return NAT[v.toUpperCase()] || NAT[v.toLowerCase()] || null;
+};
+const flagOf = nat => {
+  const e = natEntry(nat);
+  const iso = e ? e.iso : (T(nat).length === 2 ? T(nat).toUpperCase() : '');
+  if (!iso) return '';
+  return String.fromCodePoint(...iso.split('').map(ch => 127397 + ch.charCodeAt(0)));
+};
+const natName = nat => { const e = natEntry(nat); return e ? e.name : T(nat); };
+const natShort = nat => {
+  const v = T(nat); if (!v) return '';
+  return flagOf(v) || (e => e && e.code ? e.code : v.slice(0, 3).toUpperCase())(natEntry(v));
+};
+
 const nameHTML = n => {
   const parts = String(n).split(' ');
   let i = 0;
@@ -622,11 +699,18 @@ function matrixBlock(d){
     </div>`;
 }
 
+function prof(d, p){
+  const base = (d.profiles && d.profiles[p.name]) || {};
+  return {pos: p.pos || base.pos || '', nat: p.nat || base.nat || ''};
+}
+
 function squadTable(d, set, key, dflt){
   const comps = set.comps;
   const s = state.sort[key] || DEFAULT_SORT[key] || {col: 'no', dir: 1};
   const getters = {
     no: p => (p.no === '' || isNaN(parseInt(p.no))) ? 9999 : parseInt(p.no), name: p => p.name,
+    pos: p => (['GK', 'DF', 'MF', 'FW'].indexOf(posGroup(prof(d, p).pos)) + 1) || 9,
+    nat: p => prof(d, p).nat || 'zzz',
     apps: p => p.total.a, goals: p => p.total.g, ratio: p => p.total.a ? p.total.g / p.total.a : -1
   };
   comps.forEach(c => {
@@ -637,34 +721,49 @@ function squadTable(d, set, key, dflt){
   const th = (col, label, cls) =>
     `<th class="${cls || ''} sortable ${s.col === col ? 'sorted' : ''}" data-sort="${col}" data-key="${key}">${label}${s.col === col ? (s.dir < 0 ? ' ↓' : ' ↑') : ''}</th>`;
   const cols = `<colgroup>
-      <col class="c-no"><col class="c-name">
+      <col class="c-no"><col class="c-name"><col class="c-pos"><col class="c-nat">
       ${comps.map(() => '<col class="c-stat"><col class="c-stat">').join('')}
       <col class="c-tot"><col class="c-tot"><col class="c-ratio">
     </colgroup>`;
   return `<div class="tablewrap"><table class="fixed">${cols}
     <thead>
-      <tr>${th('no', '#')}${th('name', 'Player', 'l')}
+      <tr>${th('no', '#')}${th('name', 'Player', 'l')}<th class="grp" colspan="2">Profile</th>
       ${comps.map(c => `<th class="grp" colspan="2">${esc(c)}</th>`).join('')}
       <th class="grp" colspan="2">Total</th>${th('ratio', 'G/A')}</tr>
-      <tr><th></th><th class="l"></th>
+      <tr><th></th><th class="l"></th>${th('pos', 'Pos', 'c')}${th('nat', 'Nat', 'c')}
       ${comps.map(c => th('a_' + c, 'Apps', 'c') + th('g_' + c, 'Gls', 'c')).join('')}
       ${th('apps', 'Apps')}${th('goals', 'Gls')}<th></th></tr>
     </thead>
-    <tbody>${rows.map(p => `<tr class="clickable" data-player="${esc(p.name)}">
+    <tbody>${rows.map(p => {
+      const pr = prof(d, p);
+      return `<tr class="clickable" data-player="${esc(p.name)}">
       <td class="num shirt">${esc(p.no)}</td><td class="l name">${nameHTML(p.name)}</td>
+      <td class="c pos" title="${esc(pr.pos)}">${esc(posShort(pr.pos)) || '·'}</td>
+      <td class="c nat" title="${esc(natName(pr.nat))}">${natShort(pr.nat) || '·'}</td>
       ${comps.map(c => cellNum(p.comps[c].a) + cellNum(p.comps[c].g, 'goal')).join('')}
       <td class="num" style="border-left:1px solid var(--line)"><b>${p.total.a}</b></td>
       <td class="num goal"><b>${p.total.g || '·'}</b></td>
       <td class="num" style="color:var(--muted)">${ratio(p.total.g, p.total.a)}</td>
-    </tr>`).join('')}</tbody></table></div>`;
+    </tr>`;}).join('')}</tbody></table></div>`;
 }
 
+const POS_FILTERS = [['', 'All'], ['GK', 'Goalkeepers'], ['DF', 'Defenders'], ['MF', 'Midfielders'], ['FW', 'Forwards']];
+
 function pageSquad(d){
+  const f = state.sel.pos || '';
+  const hasProfiles = Object.keys(d.profiles || {}).length > 0;
+  const set = {comps: d.career.comps,
+    players: d.career.players.filter(p => !f || posGroup(prof(d, p).pos) === f)};
+  const chips = hasProfiles ? `<div class="chips" id="posChips">${POS_FILTERS.map(([v, label]) => {
+      const n = v ? d.career.players.filter(p => posGroup(prof(d, p).pos) === v).length : d.career.players.length;
+      return n ? `<button class="chip ${f === v ? 'on' : ''}" data-pos="${v}">${label} <span style="opacity:.6">${n}</span></button>` : '';
+    }).join('')}</div>` : '';
   return head('Squad', 'Arsenal squad statistics',
     'Every appearance and goal for the current squad, in all competitions, since they joined. Click a name for a season-by-season breakdown.')
     + kpiBlock(d)
     + `<div class="section-h"><h2>The squad</h2><span class="hint">Apps = appearances · Gls = goals · by shirt number</span></div>`
-    + squadTable(d, d.career, 'squad');
+    + chips
+    + squadTable(d, set, 'squad');
 }
 
 function pageSeason(d){
@@ -698,7 +797,8 @@ function pageComp(d, id){
     <th class="fix" style="text-align:right;padding-right:10px">Gls</th></tr>`;
 
   const body = players.map(p => `<tr>
-    <td class="pname">${nameHTML(p.name)}</td>
+    <td class="pname">${nameHTML(p.name)}${(() => {
+      const ps = posShort(prof(d, p).pos); return ps ? `<span class="tag">${esc(ps)}</span>` : ''; })()}</td>
     ${p.cells.map(x => `<td class="cell">${
       x.g > 0 ? `<span class="pip scored">${x.g}</span>` :
       x.a > 0 ? `<span class="pip app">1</span>` : ''}</td>`).join('')}
@@ -889,6 +989,11 @@ function playerPanel(d, name){
     <button class="close" id="closePanel" aria-label="Close">×</button>
     <div class="eyebrow">${esc(career.no ? 'No. ' + career.no : 'Player')}</div>
     <h2>${esc(career.name)}</h2>
+    ${(() => { const pr = prof(d, career);
+      return (pr.pos || pr.nat) ? `<div style="margin-bottom:10px;font-size:14px">
+        ${pr.pos ? `<span style="color:var(--brass)">${esc(pr.pos)}</span>` : ''}
+        ${pr.pos && pr.nat ? '<span style="color:var(--muted)"> · </span>' : ''}
+        ${pr.nat ? `<span>${flagOf(pr.nat)} ${esc(natName(pr.nat))}</span>` : ''}</div>` : ''; })()}
     <div class="num" style="color:var(--muted);margin-bottom:20px">
       ${career.total.a} apps · ${career.total.g} goals · ${ratio(career.total.g, career.total.a)} per game</div>
     <div class="tablewrap"><table class="fixed" style="min-width:0">
@@ -989,6 +1094,11 @@ function wire(){
     state.sel.exq = exq.value; const pos = exq.selectionStart; render();
     const el = document.getElementById('exq'); el.focus(); el.setSelectionRange(pos, pos);
   };
+
+  const pc = document.getElementById('posChips');
+  if (pc) pc.querySelectorAll('.chip').forEach(b => b.onclick = () => {
+    state.sel.pos = b.dataset.pos === state.sel.pos ? '' : b.dataset.pos; render();
+  });
 
   const chips = document.getElementById('raceChips');
   if (chips) chips.querySelectorAll('.chip').forEach(b => b.onclick = () => {

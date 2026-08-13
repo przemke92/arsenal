@@ -92,17 +92,56 @@ const N = v => {
   return isNaN(n) ? 0 : n;
 };
 const at = (aoa, r, c) => (aoa[r] && aoa[r][c] !== undefined) ? aoa[r][c] : null;
+const NAT_RAW = 'ENG::England|SCO::Scotland|WAL::Wales|NIR::Northern Ireland|IRL:IE:Republic of Ireland|FRA:FR:France|ESP:ES:Spain|POR:PT:Portugal|NED:NL:Netherlands|GER:DE:Germany|ITA:IT:Italy|BEL:BE:Belgium|SUI:CH:Switzerland|AUT:AT:Austria|DEN:DK:Denmark|NOR:NO:Norway|SWE:SE:Sweden|FIN:FI:Finland|ISL:IS:Iceland|POL:PL:Poland|CZE:CZ:Czechia|SVK:SK:Slovakia|HUN:HU:Hungary|ROU:RO:Romania|BUL:BG:Bulgaria|GRE:GR:Greece|TUR:TR:Turkey|CRO:HR:Croatia|SRB:RS:Serbia|SLO:SI:Slovenia|BIH:BA:Bosnia and Herzegovina|MKD:MK:North Macedonia|MNE:ME:Montenegro|ALB:AL:Albania|KOS:XK:Kosovo|UKR:UA:Ukraine|RUS:RU:Russia|BLR:BY:Belarus|LTU:LT:Lithuania|LVA:LV:Latvia|EST:EE:Estonia|GEO:GE:Georgia|ARM:AM:Armenia|AZE:AZ:Azerbaijan|CYP:CY:Cyprus|LUX:LU:Luxembourg|MLT:MT:Malta|ISR:IL:Israel|BRA:BR:Brazil|ARG:AR:Argentina|URU:UY:Uruguay|CHI:CL:Chile|COL:CO:Colombia|ECU:EC:Ecuador|PER:PE:Peru|PAR:PY:Paraguay|BOL:BO:Bolivia|VEN:VE:Venezuela|USA:US:United States|CAN:CA:Canada|MEX:MX:Mexico|CRC:CR:Costa Rica|JAM:JM:Jamaica|TRI:TT:Trinidad and Tobago|HON:HN:Honduras|PAN:PA:Panama|GUA:GT:Guatemala|HAI:HT:Haiti|CUB:CU:Cuba|NGA:NG:Nigeria|GHA:GH:Ghana|CIV:CI:Ivory Coast|SEN:SN:Senegal|CMR:CM:Cameroon|EGY:EG:Egypt|MAR:MA:Morocco|ALG:DZ:Algeria|TUN:TN:Tunisia|MLI:ML:Mali|BFA:BF:Burkina Faso|GUI:GN:Guinea|COD:CD:DR Congo|CGO:CG:Congo|ANG:AO:Angola|RSA:ZA:South Africa|ZIM:ZW:Zimbabwe|ZAM:ZM:Zambia|KEN:KE:Kenya|UGA:UG:Uganda|GAB:GA:Gabon|TOG:TG:Togo|BEN:BJ:Benin|CPV:CV:Cape Verde|GAM:GM:Gambia|SLE:SL:Sierra Leone|LBR:LR:Liberia|MTN:MR:Mauritania|NIG:NE:Niger|EQG:GQ:Equatorial Guinea|MOZ:MZ:Mozambique|MAD:MG:Madagascar|JPN:JP:Japan|KOR:KR:South Korea|CHN:CN:China|AUS:AU:Australia|NZL:NZ:New Zealand|IRN:IR:Iran|IRQ:IQ:Iraq|KSA:SA:Saudi Arabia|UAE:AE:United Arab Emirates|QAT:QA:Qatar|JOR:JO:Jordan|UZB:UZ:Uzbekistan|IND:IN:India|THA:TH:Thailand|VIE:VN:Vietnam|PHI:PH:Philippines|IDN:ID:Indonesia';
+const NAT = {};
+NAT_RAW.split('|').forEach(row => {
+  const [code, iso, name] = row.split(':');
+  NAT[code] = {iso, name};
+  NAT[name.toLowerCase()] = {iso, name, code};
+});
+const natEntry = nat => {
+  const v = T(nat); if (!v) return null;
+  return NAT[v.toUpperCase()] || NAT[v.toLowerCase()] || null;
+};
+const flagOf = nat => {
+  const e = natEntry(nat);
+  const iso = e ? e.iso : (T(nat).length === 2 ? T(nat).toUpperCase() : '');
+  if (!iso) return '';
+  return String.fromCodePoint(...iso.split('').map(ch => 127397 + ch.charCodeAt(0)));
+};
+const natName = nat => { const e = natEntry(nat); return e ? e.name : T(nat); };
+const natShort = nat => {
+  const v = T(nat); if (!v) return '';
+  return flagOf(v) || (e => e && e.code ? e.code : v.slice(0, 3).toUpperCase())(natEntry(v));
+};
+
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-function headerRow(aoa){
-  for (let r = 0; r < 8; r++) if (T(at(aoa, r, 1)).toLowerCase() === 'name') return r;
-  return -1;
+const HDR = {name: ['name', 'player'], pos: ['pos', 'position'],
+  nat: ['nat', 'nationality', 'country', 'nationalities']};
+function findHeader(aoa){
+  for (let r = 0; r < 8; r++){
+    for (let c = 0; c < 8; c++){
+      if (HDR.name.indexOf(T(at(aoa, r, c)).toLowerCase()) > -1){
+        const cols = {no: 0, name: c};
+        for (let cc = 0; cc < 12; cc++){
+          const lab = T(at(aoa, r, cc)).toLowerCase();
+          if (HDR.pos.indexOf(lab) > -1) cols.pos = cc;
+          if (HDR.nat.indexOf(lab) > -1) cols.nat = cc;
+        }
+        return {row: r, cols};
+      }
+    }
+  }
+  return null;
 }
+function headerRow(aoa){ const h = findHeader(aoa); return h ? h.row : -1; }
 function parseSquadSheet(aoa){
-  const h = headerRow(aoa); if (h < 0) return null;
+  const hd = findHeader(aoa); if (!hd) return null;
+  const h = hd.row, id = hd.cols;
   const above = h - 1, comps = [];
   const width = Math.max(...aoa.slice(0, h + 1).map(r => (r || []).length));
-  let c = 2;
+  let c = Math.max(id.name, id.pos === undefined ? 0 : id.pos, id.nat === undefined ? 0 : id.nat) + 1;
   while (c < width){
     const lab = T(at(aoa, h, c)).toLowerCase();
     if (lab.indexOf('apps') === 0 || lab === 'a'){
@@ -113,8 +152,10 @@ function parseSquadSheet(aoa){
   }
   const players = [];
   for (let r = h + 1; r < aoa.length; r++){
-    const name = T(at(aoa, r, 1)); if (!name) continue;
-    const p = {no: T(at(aoa, r, 0)), name, comps: {}};
+    const name = T(at(aoa, r, id.name)); if (!name) continue;
+    const p = {no: T(at(aoa, r, id.no)), name, comps: {}};
+    if (id.pos !== undefined) p.pos = T(at(aoa, r, id.pos));
+    if (id.nat !== undefined) p.nat = T(at(aoa, r, id.nat));
     comps.forEach(k => p.comps[k.name] = {a: N(at(aoa, r, k.col)), g: N(at(aoa, r, k.col + 1))});
     p.total = p.comps['Total'] || null; delete p.comps['Total'];
     if (!p.total){ p.total = {a: 0, g: 0}; Object.values(p.comps).forEach(v => {p.total.a += v.a; p.total.g += v.g;}); }
@@ -123,11 +164,12 @@ function parseSquadSheet(aoa){
   return {comps: comps.map(k => k.name).filter(n => n.toLowerCase() !== 'total'), players};
 }
 function parseMatchSheet(aoa, key, label){
-  const h = headerRow(aoa); if (h < 0) return null;
+  const hd = findHeader(aoa); if (!hd) return null;
+  const h = hd.row, nameCol = hd.cols.name, noCol = hd.cols.no;
   const oppRow = h - 1, stageRow = h - 2;
   const width = Math.max(...aoa.slice(0, h + 1).map(r => (r || []).length));
   const fixtures = [], cols = []; let stage = '';
-  for (let c = 2; c < width; c++){
+  for (let c = nameCol + 1; c < width; c++){
     if (T(at(aoa, h, c)) === 'A'){
       if (stageRow >= 0){ const st = T(at(aoa, stageRow, c)); if (st) stage = st; }
       fixtures.push({opponent: T(at(aoa, oppRow, c)), stage}); cols.push(c); c++;
@@ -135,20 +177,21 @@ function parseMatchSheet(aoa, key, label){
   }
   const players = [];
   for (let r = h + 1; r < aoa.length; r++){
-    const name = T(at(aoa, r, 1)); if (!name) continue;
+    const name = T(at(aoa, r, nameCol)); if (!name) continue;
     const cells = cols.map(c => ({a: N(at(aoa, r, c)), g: N(at(aoa, r, c + 1))}));
-    players.push({no: T(at(aoa, r, 0)), name, cells,
+    players.push({no: T(at(aoa, r, noCol)), name, cells,
       a: cells.reduce((s, x) => s + x.a, 0), g: cells.reduce((s, x) => s + x.g, 0)});
   }
   return {key, label, fixtures, players};
 }
 function parseSingleMatchSheet(aoa, key, label){
-  const h = headerRow(aoa); if (h < 0) return null;
+  const hd = findHeader(aoa); if (!hd) return null;
+  const h = hd.row, nc = hd.cols.name;
   const players = [];
   for (let r = h + 1; r < aoa.length; r++){
-    const name = T(at(aoa, r, 1)); if (!name) continue;
-    const a = N(at(aoa, r, 2)), g = N(at(aoa, r, 3));
-    players.push({no: T(at(aoa, r, 0)), name, a, g, cells: [{a, g}]});
+    const name = T(at(aoa, r, nc)); if (!name) continue;
+    const a = N(at(aoa, r, nc + 1)), g = N(at(aoa, r, nc + 2));
+    players.push({no: T(at(aoa, r, hd.cols.no)), name, a, g, cells: [{a, g}]});
   }
   return {key, label, fixtures: [{opponent: '', stage: label}], players};
 }
@@ -232,6 +275,8 @@ function parseWorkbook(wb){
     parseSingleMatchSheet(aoa('Other (CS)'), 'community-shield', 'Community Shield')
   ].filter(Boolean);
   data.exPlayers = parseSquadSheet(aoa('Ex-Players'));
+  data.profiles = {};
+  data.career.players.forEach(p => { if (p.pos || p.nat) data.profiles[p.name] = {pos: p.pos || '', nat: p.nat || ''}; });
   data.records = parseRecords(aoa('All-time records'));
   data.breakdown = parseBreakdown(aoa('Season Breakdown'));
   let asOf = null;
@@ -283,6 +328,20 @@ function report(wb, d, fileName, fileSize){
         noNumber.length ? noNumber.length + ' players without a shirt number' : 'Every player has a shirt number',
         noNumber.length ? noNumber.map(p => p.name).join(', ') + ' will sort to the bottom' : '')
     + (dupes.length ? check('warn', 'Duplicate names in the squad sheet', dupes.join(', ')) : '')
+    + (() => {
+        const withPos = d.career.players.filter(p => T(p.pos)).length;
+        const withNat = d.career.players.filter(p => T(p.nat)).length;
+        const total = d.career.players.length;
+        if (!withPos && !withNat) return check('warn', 'No position or nationality columns found',
+          'Add columns headed Pos and Nat to the squad sheet and they will appear on the site');
+        const positions = [...new Set(d.career.players.map(p => T(p.pos)).filter(Boolean))];
+        const nations = [...new Set(d.career.players.map(p => T(p.nat)).filter(Boolean))]
+          .map(n => (flagOf(n) || '') + ' ' + natName(n));
+        return check(withPos === total ? 'ok' : 'warn', withPos + ' of ' + total + ' players have a position',
+            positions.join(' · '))
+          + check(withNat === total ? 'ok' : 'warn', withNat + ' of ' + total + ' players have a nationality',
+            nations.join(' · '));
+      })()
     + check(d.meta.asOf ? 'ok' : 'warn', d.meta.asOf ? 'Dated ' + d.meta.asOf : 'No date in cell R2',
         d.meta.asOf ? '' : 'the dashboard will show a dash instead');
 
