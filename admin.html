@@ -66,6 +66,14 @@ td.r,th.r{text-align:right}
 .commitmsg.good{color:var(--ok)}
 .commitmsg.bad{color:var(--red)}
 .btn:disabled{opacity:.5;cursor:default}
+.spark{display:flex;gap:4px;align-items:flex-end;height:110px;margin-top:6px}
+.sparkcol{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%}
+.sparkbar{background:var(--brass);min-height:2px;border-radius:1px}
+.sparklab{font-family:var(--mono);font-size:9px;color:var(--muted);text-align:center;margin-top:5px}
+code{font-family:var(--mono);font-size:11px;color:var(--brass)}
+img.flag{width:20px;height:15px;object-fit:cover;border-radius:2px;vertical-align:middle;
+  box-shadow:0 0 0 1px rgba(237,230,218,.14)}
+.natcode{font-family:var(--mono);font-size:11px;color:var(--muted)}
 .note{border-left:2px solid var(--line);padding:2px 0 2px 14px;color:var(--muted);margin:20px 0;font-size:14px}
 .foot{margin-top:50px;padding-top:18px;border-top:1px solid var(--line);
   font-family:var(--mono);font-size:11px;color:var(--muted)}
@@ -83,6 +91,8 @@ td.r,th.r{text-align:right}
     <strong>Drop arsenal_stats.xlsx here</strong>
     or <label class="pick">choose a file<input type="file" id="pick" accept=".xlsx,.xlsm" hidden></label>
   </div>
+
+  <div id="traffic"></div>
 
   <div id="out" class="hidden"></div>
 
@@ -120,10 +130,21 @@ const posGroup = p => {
 };
 const NAT_RAW = 'ENG::England|SCO::Scotland|WAL::Wales|NIR::Northern Ireland|IRL:IE:Republic of Ireland|FRA:FR:France|ESP:ES:Spain|POR:PT:Portugal|NED:NL:Netherlands|GER:DE:Germany|ITA:IT:Italy|BEL:BE:Belgium|SUI:CH:Switzerland|AUT:AT:Austria|DEN:DK:Denmark|NOR:NO:Norway|SWE:SE:Sweden|FIN:FI:Finland|ISL:IS:Iceland|POL:PL:Poland|CZE:CZ:Czechia|SVK:SK:Slovakia|HUN:HU:Hungary|ROU:RO:Romania|BUL:BG:Bulgaria|GRE:GR:Greece|TUR:TR:Turkey|CRO:HR:Croatia|SRB:RS:Serbia|SLO:SI:Slovenia|BIH:BA:Bosnia and Herzegovina|MKD:MK:North Macedonia|MNE:ME:Montenegro|ALB:AL:Albania|KOS:XK:Kosovo|UKR:UA:Ukraine|RUS:RU:Russia|BLR:BY:Belarus|LTU:LT:Lithuania|LVA:LV:Latvia|EST:EE:Estonia|GEO:GE:Georgia|ARM:AM:Armenia|AZE:AZ:Azerbaijan|CYP:CY:Cyprus|LUX:LU:Luxembourg|MLT:MT:Malta|ISR:IL:Israel|BRA:BR:Brazil|ARG:AR:Argentina|URU:UY:Uruguay|CHI:CL:Chile|COL:CO:Colombia|ECU:EC:Ecuador|PER:PE:Peru|PAR:PY:Paraguay|BOL:BO:Bolivia|VEN:VE:Venezuela|USA:US:United States|CAN:CA:Canada|MEX:MX:Mexico|CRC:CR:Costa Rica|JAM:JM:Jamaica|TRI:TT:Trinidad and Tobago|HON:HN:Honduras|PAN:PA:Panama|GUA:GT:Guatemala|HAI:HT:Haiti|CUB:CU:Cuba|NGA:NG:Nigeria|GHA:GH:Ghana|CIV:CI:Ivory Coast|SEN:SN:Senegal|CMR:CM:Cameroon|EGY:EG:Egypt|MAR:MA:Morocco|ALG:DZ:Algeria|TUN:TN:Tunisia|MLI:ML:Mali|BFA:BF:Burkina Faso|GUI:GN:Guinea|COD:CD:DR Congo|CGO:CG:Congo|ANG:AO:Angola|RSA:ZA:South Africa|ZIM:ZW:Zimbabwe|ZAM:ZM:Zambia|KEN:KE:Kenya|UGA:UG:Uganda|GAB:GA:Gabon|TOG:TG:Togo|BEN:BJ:Benin|CPV:CV:Cape Verde|GAM:GM:Gambia|SLE:SL:Sierra Leone|LBR:LR:Liberia|MTN:MR:Mauritania|NIG:NE:Niger|EQG:GQ:Equatorial Guinea|MOZ:MZ:Mozambique|MAD:MG:Madagascar|JPN:JP:Japan|KOR:KR:South Korea|CHN:CN:China|AUS:AU:Australia|NZL:NZ:New Zealand|IRN:IR:Iran|IRQ:IQ:Iraq|KSA:SA:Saudi Arabia|UAE:AE:United Arab Emirates|QAT:QA:Qatar|JOR:JO:Jordan|UZB:UZ:Uzbekistan|IND:IN:India|THA:TH:Thailand|VIE:VN:Vietnam|PHI:PH:Philippines|IDN:ID:Indonesia';
 const NAT = {};
+const ISO_EXTRA = 'GB:United Kingdom|IE:Ireland|CN:China|HK:Hong Kong|TW:Taiwan|SG:Singapore|'
+  + 'AE:United Arab Emirates|IN:India|ID:Indonesia|MY:Malaysia|PK:Pakistan|BD:Bangladesh|'
+  + 'NP:Nepal|LK:Sri Lanka|VN:Vietnam|TH:Thailand|PH:Philippines|KE:Kenya|TZ:Tanzania|'
+  + 'ET:Ethiopia|SD:Sudan|IQ:Iraq|IL:Israel|SA:Saudi Arabia|LB:Lebanon|CY:Cyprus|MT:Malta|'
+  + 'LU:Luxembourg|MD:Moldova|BY:Belarus|KZ:Kazakhstan|AM:Armenia|AZ:Azerbaijan|GE:Georgia';
+ISO_EXTRA.split('|').forEach(row => {
+  const [iso, name] = row.split(':');
+  if (!NAT[iso]) NAT[iso] = {iso, name};
+});
 NAT_RAW.split('|').forEach(row => {
   const [code, iso, name] = row.split(':');
   NAT[code] = {iso, name};
   NAT[name.toLowerCase()] = {iso, name, code};
+  const up = iso.toUpperCase();
+  if (iso.length === 2 && !NAT[up]) NAT[up] = {iso, name, code};
 });
 const natEntry = nat => {
   const v = T(nat); if (!v) return null;
@@ -344,6 +365,8 @@ function parseWorkbook(wb){
 /* ---------- report ---------- */
 const REPO = {owner: 'przemke92', repo: 'arsenal', branch: 'main', path: 'data/arsenal_stats.xlsx'};
 const TOKEN_KEY = 'arsenal-gh-token';
+const COUNTER_KEY = 'arsenal_dashboard_przemke92_v1';
+const FIREBASE_DB = 'https://arsenal-dashboard-2d6e7-default-rtdb.europe-west1.firebasedatabase.app';   // same value as in index.html
 let lastFile = null;
 
 const b64 = bytes => {
@@ -498,6 +521,76 @@ function report(wb, d, fileName, fileSize){
     with Contents set to read and write. It is stored in this browser, never in the page source,
     and never leaves your machine except to api.github.com.</div>`;
 }
+
+/* ---------- traffic ---------- */
+async function loadTraffic(){
+  const el = document.getElementById('traffic');
+  let total = null;
+  try{
+    const r = await fetch(`https://countapi.mileshilliard.com/api/v1/get/${COUNTER_KEY}`);
+    if (r.ok) total = parseInt((await r.json()).value, 10);
+  }catch(e){}
+
+  let rows = null;
+  if (FIREBASE_DB){
+    try{
+      const r = await fetch(FIREBASE_DB.replace(/\/$/, '') + '/arsenal/visits.json');
+      const j = await r.json();
+      rows = j ? Object.values(j) : [];
+    }catch(e){ rows = null; }
+  }
+
+  let html = `<h2>Traffic</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${total === null || isNaN(total) ? '—' : total.toLocaleString('en-GB')}</div>
+        <div class="l">Dashboard visits</div></div>`;
+  if (rows){
+    const day = 86400000, now = Date.now();
+    html += `<div class="kpi"><div class="v">${rows.filter(v => now - v.t < 7 * day).length}</div>
+        <div class="l">Last 7 days</div></div>
+      <div class="kpi"><div class="v">${new Set(rows.map(v => v.c)).size}</div>
+        <div class="l">Countries</div></div>`;
+  }
+  html += `</div>`;
+
+  if (rows && rows.length){
+    const by = {};
+    rows.forEach(v => by[v.c] = (by[v.c] || 0) + 1);
+    const sorted = Object.entries(by).sort((a, b) => b[1] - a[1]);
+    const max = sorted[0][1];
+    html += `<h2>Where they came from</h2><table><thead><tr>
+        <th style="width:34px"></th><th>Country</th><th class="r">Visits</th><th style="width:38%"></th>
+      </tr></thead><tbody>${sorted.map(([code, n]) => `<tr>
+        <td>${flagImg(code)}</td>
+        <td>${esc(natName(code))}</td>
+        <td class="r num">${n}</td>
+        <td><div style="height:7px;width:${(n / max * 100).toFixed(1)}%;background:var(--brass)"></div></td>
+      </tr>`).join('')}</tbody></table>`;
+
+    const day = 86400000, today = new Date(); today.setHours(0, 0, 0, 0);
+    const days = [];
+    for (let i = 13; i >= 0; i--){
+      const start = today.getTime() - i * day;
+      days.push({label: new Date(start).getDate(), n: rows.filter(v => v.t >= start && v.t < start + day).length});
+    }
+    const peak = Math.max(1, ...days.map(d => d.n));
+    html += `<h2>Last fortnight</h2><div class="spark">${days.map(d => `
+      <div class="sparkcol" title="${d.n} on the ${d.label}">
+        <div class="sparkbar" style="height:${(d.n / peak * 100).toFixed(0)}%"></div>
+        <div class="sparklab">${d.label}</div>
+      </div>`).join('')}</div>`;
+  } else if (!FIREBASE_DB){
+    html += `<div class="note">Countries need somewhere to store one small record per visit.
+      Create a Realtime Database in Firebase, allow reads and writes on <code>/arsenal/visits</code>,
+      then paste its URL into <code>FIREBASE_DB</code> at the top of both index.html and admin.html.
+      Nothing else changes: the dashboard writes a two-letter country code and a timestamp, nothing personal.</div>`;
+  } else {
+    html += `<div class="note">No visits logged yet, or the database refused the read.
+      Check that <code>/arsenal/visits</code> allows public reads.</div>`;
+  }
+  el.innerHTML = html;
+}
+loadTraffic();
 
 const out = document.getElementById('out');
 function handle(file){
