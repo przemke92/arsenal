@@ -157,6 +157,15 @@ const flagOf = nat => {
   return String.fromCodePoint(...iso.split('').map(ch => 127397 + ch.charCodeAt(0)));
 };
 const natName = nat => { const e = natEntry(nat); return e ? e.name : T(nat); };
+const flagImg = nat => {
+  const e = natEntry(nat);
+  const code = (e ? e.iso : (T(nat).length === 2 ? T(nat) : '')).toLowerCase();
+  const label = natName(nat), fb = (e && e.code ? e.code : T(nat)).toUpperCase();
+  if (!code) return `<span class="natcode">${esc(fb)}</span>`;
+  return `<img class="flag" src="https://flagcdn.com/w40/${code}.png" width="20" height="15"
+    alt="${esc(label)}" title="${esc(label)}" loading="lazy" data-code="${esc(fb)}"
+    onerror="this.replaceWith(document.createTextNode(this.dataset.code))">`;
+};
 const natShort = nat => {
   const v = T(nat); if (!v) return '';
   return flagOf(v) || (e => e && e.code ? e.code : v.slice(0, 3).toUpperCase())(natEntry(v));
