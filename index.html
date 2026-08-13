@@ -575,22 +575,20 @@ function sortTable(rows, key, dir, getters){
    5. PAGES
    ============================================================ */
 function kpiBlock(d){
-  const b = d.breakdown;
-  const played = d.competitions.reduce((s, c) =>
-    s + c.fixtures.filter((f, i) => c.players.some(p => p.cells[i] && p.cells[i].a > 0)).length, 0);
-  const liveKey = played ? d.currentSeason
-    : (d.seasonKeys.find(k => d.seasons[k].players.some(p => p.total.a > 0)) || d.currentSeason);
-  const cur = d.seasons[liveKey];
+  const key = d.currentSeason;
+  const cur = d.seasons[key];
   const scorer = cur.players.slice().sort((a, b) => b.total.g - a.total.g)[0];
   const appsLeader = cur.players.slice().sort((a, b) => b.total.a - a.total.a)[0];
   const mostApps = d.career.players.slice().sort((a, b) => b.total.a - a.total.a)[0];
   const mostGoals = d.career.players.slice().sort((a, b) => b.total.g - a.total.g)[0];
+  const tile = (v, label, name) => `<div class="kpi">
+      <div class="v">${v || '—'}</div><div class="l">${esc(label)}</div>
+      <div class="s">${v ? esc(name) : 'nothing recorded yet'}</div></div>`;
   return `<div class="kpis">
-      <div class="kpi"><div class="v">${played}</div><div class="l">Matches recorded in ${esc(d.currentSeason)}</div></div>
-      <div class="kpi"><div class="v">${scorer.total.g}</div><div class="l">Top scorer ${esc(liveKey)}</div><div class="s">${esc(scorer.name)}</div></div>
-      <div class="kpi"><div class="v">${appsLeader.total.a}</div><div class="l">Most apps ${esc(liveKey)}</div><div class="s">${esc(appsLeader.name)}</div></div>
-      <div class="kpi"><div class="v">${mostApps.total.a}</div><div class="l">Most apps at the club</div><div class="s">${esc(mostApps.name)}</div></div>
-      <div class="kpi"><div class="v">${mostGoals.total.g}</div><div class="l">Most goals at the club</div><div class="s">${esc(mostGoals.name)}</div></div>
+      ${tile(scorer.total.g, 'Top scorer ' + key, scorer.name)}
+      ${tile(appsLeader.total.a, 'Most apps ' + key, appsLeader.name)}
+      ${tile(mostApps.total.a, 'Most apps at the club', mostApps.name)}
+      ${tile(mostGoals.total.g, 'Most goals at the club', mostGoals.name)}
     </div>`;
 }
 
