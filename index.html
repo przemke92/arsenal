@@ -121,7 +121,10 @@ thead th.l,tbody td.l{text-align:left}
 thead th.c{text-align:center}
 tbody td.c{text-align:center}
 td.pos{font-family:var(--mono);font-size:11px;color:var(--brass);letter-spacing:.04em}
-td.nat{font-size:15px;line-height:1}
+td.nat{line-height:1}
+img.flag{width:20px;height:15px;object-fit:cover;border-radius:2px;vertical-align:middle;
+  box-shadow:0 0 0 1px rgba(237,230,218,.14)}
+.natcode{font-family:var(--mono);font-size:11px;color:var(--muted)}
 .tag{font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:6px}
 thead th.sortable{cursor:pointer;user-select:none}
 thead th.sortable:hover{color:var(--parchment)}
@@ -598,7 +601,7 @@ const posGroup = p => {
   if (/for|attack|strik|wing|^st|^fw|^rw|^lw|^cf/.test(v)) return 'FW';
   return '';
 };
-const NAT_RAW = 'ENG::England|SCO::Scotland|WAL::Wales|NIR::Northern Ireland|IRL:IE:Republic of Ireland|FRA:FR:France|ESP:ES:Spain|POR:PT:Portugal|NED:NL:Netherlands|GER:DE:Germany|ITA:IT:Italy|BEL:BE:Belgium|SUI:CH:Switzerland|AUT:AT:Austria|DEN:DK:Denmark|NOR:NO:Norway|SWE:SE:Sweden|FIN:FI:Finland|ISL:IS:Iceland|POL:PL:Poland|CZE:CZ:Czechia|SVK:SK:Slovakia|HUN:HU:Hungary|ROU:RO:Romania|BUL:BG:Bulgaria|GRE:GR:Greece|TUR:TR:Turkey|CRO:HR:Croatia|SRB:RS:Serbia|SLO:SI:Slovenia|BIH:BA:Bosnia and Herzegovina|MKD:MK:North Macedonia|MNE:ME:Montenegro|ALB:AL:Albania|KOS:XK:Kosovo|UKR:UA:Ukraine|RUS:RU:Russia|BLR:BY:Belarus|LTU:LT:Lithuania|LVA:LV:Latvia|EST:EE:Estonia|GEO:GE:Georgia|ARM:AM:Armenia|AZE:AZ:Azerbaijan|CYP:CY:Cyprus|LUX:LU:Luxembourg|MLT:MT:Malta|ISR:IL:Israel|BRA:BR:Brazil|ARG:AR:Argentina|URU:UY:Uruguay|CHI:CL:Chile|COL:CO:Colombia|ECU:EC:Ecuador|PER:PE:Peru|PAR:PY:Paraguay|BOL:BO:Bolivia|VEN:VE:Venezuela|USA:US:United States|CAN:CA:Canada|MEX:MX:Mexico|CRC:CR:Costa Rica|JAM:JM:Jamaica|TRI:TT:Trinidad and Tobago|HON:HN:Honduras|PAN:PA:Panama|GUA:GT:Guatemala|HAI:HT:Haiti|CUB:CU:Cuba|NGA:NG:Nigeria|GHA:GH:Ghana|CIV:CI:Ivory Coast|SEN:SN:Senegal|CMR:CM:Cameroon|EGY:EG:Egypt|MAR:MA:Morocco|ALG:DZ:Algeria|TUN:TN:Tunisia|MLI:ML:Mali|BFA:BF:Burkina Faso|GUI:GN:Guinea|COD:CD:DR Congo|CGO:CG:Congo|ANG:AO:Angola|RSA:ZA:South Africa|ZIM:ZW:Zimbabwe|ZAM:ZM:Zambia|KEN:KE:Kenya|UGA:UG:Uganda|GAB:GA:Gabon|TOG:TG:Togo|BEN:BJ:Benin|CPV:CV:Cape Verde|GAM:GM:Gambia|SLE:SL:Sierra Leone|LBR:LR:Liberia|MTN:MR:Mauritania|NIG:NE:Niger|EQG:GQ:Equatorial Guinea|MOZ:MZ:Mozambique|MAD:MG:Madagascar|JPN:JP:Japan|KOR:KR:South Korea|CHN:CN:China|AUS:AU:Australia|NZL:NZ:New Zealand|IRN:IR:Iran|IRQ:IQ:Iraq|KSA:SA:Saudi Arabia|UAE:AE:United Arab Emirates|QAT:QA:Qatar|JOR:JO:Jordan|UZB:UZ:Uzbekistan|IND:IN:India|THA:TH:Thailand|VIE:VN:Vietnam|PHI:PH:Philippines|IDN:ID:Indonesia';
+const NAT_RAW = 'ENG:gb-eng:England|SCO:gb-sct:Scotland|WAL:gb-wls:Wales|NIR:gb-nir:Northern Ireland|IRL:IE:Republic of Ireland|FRA:FR:France|ESP:ES:Spain|POR:PT:Portugal|NED:NL:Netherlands|GER:DE:Germany|ITA:IT:Italy|BEL:BE:Belgium|SUI:CH:Switzerland|AUT:AT:Austria|DEN:DK:Denmark|NOR:NO:Norway|SWE:SE:Sweden|FIN:FI:Finland|ISL:IS:Iceland|POL:PL:Poland|CZE:CZ:Czechia|SVK:SK:Slovakia|HUN:HU:Hungary|ROU:RO:Romania|BUL:BG:Bulgaria|GRE:GR:Greece|TUR:TR:Turkey|CRO:HR:Croatia|SRB:RS:Serbia|SLO:SI:Slovenia|BIH:BA:Bosnia and Herzegovina|MKD:MK:North Macedonia|MNE:ME:Montenegro|ALB:AL:Albania|KOS:XK:Kosovo|UKR:UA:Ukraine|RUS:RU:Russia|BLR:BY:Belarus|LTU:LT:Lithuania|LVA:LV:Latvia|EST:EE:Estonia|GEO:GE:Georgia|ARM:AM:Armenia|AZE:AZ:Azerbaijan|CYP:CY:Cyprus|LUX:LU:Luxembourg|MLT:MT:Malta|ISR:IL:Israel|BRA:BR:Brazil|ARG:AR:Argentina|URU:UY:Uruguay|CHI:CL:Chile|COL:CO:Colombia|ECU:EC:Ecuador|PER:PE:Peru|PAR:PY:Paraguay|BOL:BO:Bolivia|VEN:VE:Venezuela|USA:US:United States|CAN:CA:Canada|MEX:MX:Mexico|CRC:CR:Costa Rica|JAM:JM:Jamaica|TRI:TT:Trinidad and Tobago|HON:HN:Honduras|PAN:PA:Panama|GUA:GT:Guatemala|HAI:HT:Haiti|CUB:CU:Cuba|NGA:NG:Nigeria|GHA:GH:Ghana|CIV:CI:Ivory Coast|SEN:SN:Senegal|CMR:CM:Cameroon|EGY:EG:Egypt|MAR:MA:Morocco|ALG:DZ:Algeria|TUN:TN:Tunisia|MLI:ML:Mali|BFA:BF:Burkina Faso|GUI:GN:Guinea|COD:CD:DR Congo|CGO:CG:Congo|ANG:AO:Angola|RSA:ZA:South Africa|ZIM:ZW:Zimbabwe|ZAM:ZM:Zambia|KEN:KE:Kenya|UGA:UG:Uganda|GAB:GA:Gabon|TOG:TG:Togo|BEN:BJ:Benin|CPV:CV:Cape Verde|GAM:GM:Gambia|SLE:SL:Sierra Leone|LBR:LR:Liberia|MTN:MR:Mauritania|NIG:NE:Niger|EQG:GQ:Equatorial Guinea|MOZ:MZ:Mozambique|MAD:MG:Madagascar|JPN:JP:Japan|KOR:KR:South Korea|CHN:CN:China|AUS:AU:Australia|NZL:NZ:New Zealand|IRN:IR:Iran|IRQ:IQ:Iraq|KSA:SA:Saudi Arabia|UAE:AE:United Arab Emirates|QAT:QA:Qatar|JOR:JO:Jordan|UZB:UZ:Uzbekistan|IND:IN:India|THA:TH:Thailand|VIE:VN:Vietnam|PHI:PH:Philippines|IDN:ID:Indonesia';
 const NAT = {};
 NAT_RAW.split('|').forEach(row => {
   const [code, iso, name] = row.split(':');
@@ -612,10 +615,19 @@ const natEntry = nat => {
 const flagOf = nat => {
   const e = natEntry(nat);
   const iso = e ? e.iso : (T(nat).length === 2 ? T(nat).toUpperCase() : '');
-  if (!iso) return '';
+  if (!iso || iso.length !== 2) return '';
   return String.fromCodePoint(...iso.split('').map(ch => 127397 + ch.charCodeAt(0)));
 };
 const natName = nat => { const e = natEntry(nat); return e ? e.name : T(nat); };
+const flagImg = nat => {
+  const e = natEntry(nat);
+  const code = (e ? e.iso : (T(nat).length === 2 ? T(nat) : '')).toLowerCase();
+  const label = natName(nat), fb = (e && e.code ? e.code : T(nat)).toUpperCase();
+  if (!code) return `<span class="natcode">${esc(fb)}</span>`;
+  return `<img class="flag" src="https://flagcdn.com/w40/${code}.png" width="20" height="15"
+    alt="${esc(label)}" title="${esc(label)}" loading="lazy" data-code="${esc(fb)}"
+    onerror="this.replaceWith(document.createTextNode(this.dataset.code))">`;
+};
 const natShort = nat => {
   const v = T(nat); if (!v) return '';
   return flagOf(v) || (e => e && e.code ? e.code : v.slice(0, 3).toUpperCase())(natEntry(v));
@@ -721,29 +733,32 @@ function squadTable(d, set, key, dflt){
   const th = (col, label, cls) =>
     `<th class="${cls || ''} sortable ${s.col === col ? 'sorted' : ''}" data-sort="${col}" data-key="${key}">${label}${s.col === col ? (s.dir < 0 ? ' ↓' : ' ↑') : ''}</th>`;
   const cols = `<colgroup>
-      <col class="c-no"><col class="c-name"><col class="c-pos"><col class="c-nat">
+      <col class="c-no"><col class="c-name">
       ${comps.map(() => '<col class="c-stat"><col class="c-stat">').join('')}
       <col class="c-tot"><col class="c-tot"><col class="c-ratio">
+      <col class="c-pos"><col class="c-nat">
     </colgroup>`;
   return `<div class="tablewrap"><table class="fixed">${cols}
     <thead>
-      <tr>${th('no', '#')}${th('name', 'Player', 'l')}<th class="grp" colspan="2">Profile</th>
+      <tr>${th('no', '#')}${th('name', 'Player', 'l')}
       ${comps.map(c => `<th class="grp" colspan="2">${esc(c)}</th>`).join('')}
-      <th class="grp" colspan="2">Total</th>${th('ratio', 'G/A')}</tr>
-      <tr><th></th><th class="l"></th>${th('pos', 'Pos', 'c')}${th('nat', 'Nat', 'c')}
+      <th class="grp" colspan="2">Total</th>${th('ratio', 'G/A')}
+      <th class="grp" colspan="2">Profile</th></tr>
+      <tr><th></th><th class="l"></th>
       ${comps.map(c => th('a_' + c, 'Apps', 'c') + th('g_' + c, 'Gls', 'c')).join('')}
-      ${th('apps', 'Apps')}${th('goals', 'Gls')}<th></th></tr>
+      ${th('apps', 'Apps')}${th('goals', 'Gls')}<th></th>
+      ${th('pos', 'Pos', 'c')}${th('nat', 'Nat', 'c')}</tr>
     </thead>
     <tbody>${rows.map(p => {
       const pr = prof(d, p);
       return `<tr class="clickable" data-player="${esc(p.name)}">
       <td class="num shirt">${esc(p.no)}</td><td class="l name">${nameHTML(p.name)}</td>
-      <td class="c pos" title="${esc(pr.pos)}">${esc(posShort(pr.pos)) || '·'}</td>
-      <td class="c nat" title="${esc(natName(pr.nat))}">${natShort(pr.nat) || '·'}</td>
       ${comps.map(c => cellNum(p.comps[c].a) + cellNum(p.comps[c].g, 'goal')).join('')}
       <td class="num" style="border-left:1px solid var(--line)"><b>${p.total.a}</b></td>
       <td class="num goal"><b>${p.total.g || '·'}</b></td>
       <td class="num" style="color:var(--muted)">${ratio(p.total.g, p.total.a)}</td>
+      <td class="c pos" title="${esc(pr.pos)}">${esc(posShort(pr.pos)) || '·'}</td>
+      <td class="c nat">${pr.nat ? flagImg(pr.nat) : '·'}</td>
     </tr>`;}).join('')}</tbody></table></div>`;
 }
 
@@ -993,7 +1008,7 @@ function playerPanel(d, name){
       return (pr.pos || pr.nat) ? `<div style="margin-bottom:10px;font-size:14px">
         ${pr.pos ? `<span style="color:var(--brass)">${esc(pr.pos)}</span>` : ''}
         ${pr.pos && pr.nat ? '<span style="color:var(--muted)"> · </span>' : ''}
-        ${pr.nat ? `<span>${flagOf(pr.nat)} ${esc(natName(pr.nat))}</span>` : ''}</div>` : ''; })()}
+        ${pr.nat ? `<span>${flagImg(pr.nat)} ${esc(natName(pr.nat))}</span>` : ''}</div>` : ''; })()}
     <div class="num" style="color:var(--muted);margin-bottom:20px">
       ${career.total.a} apps · ${career.total.g} goals · ${ratio(career.total.g, career.total.a)} per game</div>
     <div class="tablewrap"><table class="fixed" style="min-width:0">
