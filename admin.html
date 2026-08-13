@@ -522,75 +522,94 @@ function report(wb, d, fileName, fileSize){
     and never leaves your machine except to api.github.com.</div>`;
 }
 
-/* ---------- traffic ---------- */
-async function loadTraffic(){
-  const el = document.getElementById('traffic');
-  let total = null;
-  try{
-    const r = await fetch(`https://countapi.mileshilliard.com/api/v1/get/${COUNTER_KEY}`);
-    if (r.ok) total = parseInt((await r.json()).value, 10);
-  }catch(e){}
+/* ---------- traffic ----------
+   Draw the section first, then fill it in. A blocked or hanging request must
+   never leave the panel blank. */
+const withTimeout = (url, ms) => {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), ms);
+  return fetch(url, {signal: ctl.signal}).finally(() => clearTimeout(timer));
+};
 
-  let rows = null;
-  if (FIREBASE_DB){
-    try{
-      const r = await fetch(FIREBASE_DB.replace(/\/$/, '') + '/arsenal/visits.json');
-      const j = await r.json();
-      rows = j ? Object.values(j) : [];
-    }catch(e){ rows = null; }
-  }
-
-  let html = `<h2>Traffic</h2>
+function trafficSkeleton(){
+  document.getElementById('traffic').innerHTML = `<h2>Traffic</h2>
     <div class="kpis">
-      <div class="kpi"><div class="v">${total === null || isNaN(total) ? '—' : total.toLocaleString('en-GB')}</div>
-        <div class="l">Dashboard visits</div></div>`;
-  if (rows){
-    const day = 86400000, now = Date.now();
-    html += `<div class="kpi"><div class="v">${rows.filter(v => now - v.t < 7 * day).length}</div>
-        <div class="l">Last 7 days</div></div>
-      <div class="kpi"><div class="v">${new Set(rows.map(v => v.c)).size}</div>
-        <div class="l">Countries</div></div>`;
-  }
-  html += `</div>`;
-
-  if (rows && rows.length){
-    const by = {};
-    rows.forEach(v => by[v.c] = (by[v.c] || 0) + 1);
-    const sorted = Object.entries(by).sort((a, b) => b[1] - a[1]);
-    const max = sorted[0][1];
-    html += `<h2>Where they came from</h2><table><thead><tr>
-        <th style="width:34px"></th><th>Country</th><th class="r">Visits</th><th style="width:38%"></th>
-      </tr></thead><tbody>${sorted.map(([code, n]) => `<tr>
-        <td>${flagImg(code)}</td>
-        <td>${esc(natName(code))}</td>
-        <td class="r num">${n}</td>
-        <td><div style="height:7px;width:${(n / max * 100).toFixed(1)}%;background:var(--brass)"></div></td>
-      </tr>`).join('')}</tbody></table>`;
-
-    const day = 86400000, today = new Date(); today.setHours(0, 0, 0, 0);
-    const days = [];
-    for (let i = 13; i >= 0; i--){
-      const start = today.getTime() - i * day;
-      days.push({label: new Date(start).getDate(), n: rows.filter(v => v.t >= start && v.t < start + day).length});
-    }
-    const peak = Math.max(1, ...days.map(d => d.n));
-    html += `<h2>Last fortnight</h2><div class="spark">${days.map(d => `
-      <div class="sparkcol" title="${d.n} on the ${d.label}">
-        <div class="sparkbar" style="height:${(d.n / peak * 100).toFixed(0)}%"></div>
-        <div class="sparklab">${d.label}</div>
-      </div>`).join('')}</div>`;
-  } else if (!FIREBASE_DB){
-    html += `<div class="note">Countries need somewhere to store one small record per visit.
-      Create a Realtime Database in Firebase, allow reads and writes on <code>/arsenal/visits</code>,
-      then paste its URL into <code>FIREBASE_DB</code> at the top of both index.html and admin.html.
-      Nothing else changes: the dashboard writes a two-letter country code and a timestamp, nothing personal.</div>`;
-  } else {
-    html += `<div class="note">No visits logged yet, or the database refused the read.
-      Check that <code>/arsenal/visits</code> allows public reads.</div>`;
-  }
-  el.innerHTML = html;
+      <div class="kpi"><div class="v" id="tTotal">…</div><div class="l">Dashboard visits</div></div>
+      <div class="kpi"><div class="v" id="tWeek">…</div><div class="l">Last 7 days</div></div>
+      <div class="kpi"><div class="v" id="tCountries">…</div><div class="l">Countries</div></div>
+    </div>
+    <div id="tDetail"></div>`;
 }
-loadTraffic();
+
+async function loadCounter(){
+  const el = document.getElementById('tTotal');
+  try{
+    const r = await withTimeout(`https://countapi.mileshilliard.com/api/v1/get/${COUNTER_KEY}`, 6000);
+    const n = parseInt((await r.json()).value, 10);
+    el.textContent = isNaN(n) ? '—' : n.toLocaleString('en-GB');
+  }catch(e){ el.textContent = '—'; el.title = 'counter unreachable'; }
+}
+
+async function loadCountries(){
+  const week = document.getElementById('tWeek'), cts = document.getElementById('tCountries');
+  const detail = document.getElementById('tDetail');
+  if (!FIREBASE_DB){
+    week.textContent = '—'; cts.textContent = '—';
+    detail.innerHTML = `<div class="note">Set <code>FIREBASE_DB</code> at the top of both files to log countries.</div>`;
+    return;
+  }
+  let rows;
+  try{
+    const r = await withTimeout(FIREBASE_DB.replace(/\/$/, '') + '/arsenal/visits.json', 8000);
+    if (!r.ok) throw new Error('database replied ' + r.status);
+    const j = await r.json();
+    rows = j ? Object.values(j) : [];
+  }catch(e){
+    week.textContent = '—'; cts.textContent = '—';
+    detail.innerHTML = `<div class="note" style="border-color:var(--red)">Could not read the database: ${esc(e.message)}.
+      Check that <code>/arsenal/visits</code> allows public reads.</div>`;
+    return;
+  }
+
+  const day = 86400000, now = Date.now();
+  week.textContent = rows.filter(v => now - v.t < 7 * day).length;
+  cts.textContent = new Set(rows.map(v => v.c)).size;
+
+  if (!rows.length){
+    detail.innerHTML = `<div class="note">Nothing logged yet. Open the dashboard in a private window and refresh this page.</div>`;
+    return;
+  }
+
+  const by = {};
+  rows.forEach(v => by[v.c] = (by[v.c] || 0) + 1);
+  const sorted = Object.entries(by).sort((a, b) => b[1] - a[1]);
+  const max = sorted[0][1];
+  let html = `<h2>Where they came from</h2><table><thead><tr>
+      <th style="width:34px"></th><th>Country</th><th class="r">Visits</th><th style="width:38%"></th>
+    </tr></thead><tbody>${sorted.map(([code, n]) => `<tr>
+      <td>${flagImg(code)}</td><td>${esc(natName(code))}</td>
+      <td class="r num">${n}</td>
+      <td><div style="height:7px;width:${(n / max * 100).toFixed(1)}%;background:var(--brass)"></div></td>
+    </tr>`).join('')}</tbody></table>`;
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = [];
+  for (let i = 13; i >= 0; i--){
+    const start = today.getTime() - i * day;
+    days.push({label: new Date(start).getDate(), n: rows.filter(v => v.t >= start && v.t < start + day).length});
+  }
+  const peak = Math.max(1, ...days.map(d => d.n));
+  html += `<h2>Last fortnight</h2><div class="spark">${days.map(d => `
+    <div class="sparkcol" title="${d.n} on the ${d.label}">
+      <div class="sparkbar" style="height:${(d.n / peak * 100).toFixed(0)}%"></div>
+      <div class="sparklab">${d.label}</div>
+    </div>`).join('')}</div>`;
+  detail.innerHTML = html;
+}
+
+trafficSkeleton();
+loadCounter();
+loadCountries();
 
 const out = document.getElementById('out');
 function handle(file){
