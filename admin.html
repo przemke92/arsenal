@@ -171,6 +171,8 @@ const natShort = nat => {
   return flagOf(v) || (e => e && e.code ? e.code : v.slice(0, 3).toUpperCase())(natEntry(v));
 };
 
+const normName = n => String(n).toUpperCase().normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/g, '');
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 const HDR = {name: ['name', 'player'], pos: ['pos', 'position'],
@@ -351,8 +353,20 @@ function parseWorkbook(wb){
     parseSingleMatchSheet(aoa('Other (CS)'), 'community-shield', 'Community Shield')
   ].filter(Boolean);
   data.exPlayers = parseSquadSheet(aoa('Ex-Players'));
+  /* Profiles come from the squad sheet first, then Ex-Players fills in everyone
+     who has since left, so season pages know them too. Names are also indexed in
+     a normalised form to survive punctuation and spacing differences. */
   data.profiles = {};
-  data.career.players.forEach(p => { if (p.pos || p.nat) data.profiles[p.name] = {pos: p.pos || '', nat: p.nat || ''}; });
+  data.profilesNorm = {};
+  const addProfile = p => {
+    if (!p.pos && !p.nat) return;
+    const rec = {pos: p.pos || '', nat: p.nat || ''};
+    if (!data.profiles[p.name]) data.profiles[p.name] = rec;
+    const key = normName(p.name);
+    if (key && !data.profilesNorm[key]) data.profilesNorm[key] = rec;
+  };
+  data.career.players.forEach(addProfile);
+  if (data.exPlayers) data.exPlayers.players.forEach(addProfile);
   data.records = parseRecords(aoa('All-time records'));
   data.breakdown = parseBreakdown(aoa('Season Breakdown'));
   let asOf = null;
@@ -468,7 +482,14 @@ function report(wb, d, fileName, fileSize){
         const positions = [...new Set(d.career.players.map(p => T(p.pos)).filter(Boolean))];
         const nations = [...new Set(d.career.players.map(p => T(p.nat)).filter(Boolean))]
           .map(n => (flagOf(n) || '') + ' ' + natName(n));
+        const exWithPos = d.exPlayers.players.filter(p => T(p.pos)).length;
+        const exWithNat = d.exPlayers.players.filter(p => T(p.nat)).length;
+        const exTotal = d.exPlayers.players.length;
+        const missing = d.exPlayers.players.filter(p => !T(p.pos) || !T(p.nat)).map(p => p.name);
         return check('ok', 'Profile columns detected', where)
+          + check(exWithPos === exTotal && exWithNat === exTotal ? 'ok' : 'warn',
+            'Ex-players: ' + exWithPos + '/' + exTotal + ' with a position, ' + exWithNat + '/' + exTotal + ' with a nationality',
+            missing.length ? 'Incomplete: ' + missing.slice(0, 12).join(', ') + (missing.length > 12 ? ' and ' + (missing.length - 12) + ' more' : '') : 'season pages will show all of them')
           + check(withPos === total ? 'ok' : 'warn', withPos + ' of ' + total + ' players have a position',
             positions.join(' · '))
           + check(withNat === total ? 'ok' : 'warn', withNat + ' of ' + total + ' players have a nationality',

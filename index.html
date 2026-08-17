@@ -516,10 +516,20 @@ function parseWorkbook(wb){
   ].filter(Boolean);
 
   data.exPlayers = parseSquadSheet(aoa('Ex-Players'));
+  /* Profiles come from the squad sheet first, then Ex-Players fills in everyone
+     who has since left, so season pages know them too. Names are also indexed in
+     a normalised form to survive punctuation and spacing differences. */
   data.profiles = {};
-  data.career.players.forEach(p => {
-    if (p.pos || p.nat) data.profiles[p.name] = {pos: p.pos || '', nat: p.nat || ''};
-  });
+  data.profilesNorm = {};
+  const addProfile = p => {
+    if (!p.pos && !p.nat) return;
+    const rec = {pos: p.pos || '', nat: p.nat || ''};
+    if (!data.profiles[p.name]) data.profiles[p.name] = rec;
+    const key = normName(p.name);
+    if (key && !data.profilesNorm[key]) data.profilesNorm[key] = rec;
+  };
+  data.career.players.forEach(addProfile);
+  if (data.exPlayers) data.exPlayers.players.forEach(addProfile);
   data.records = parseRecords(aoa('All-time records'));
   data.breakdown = parseBreakdown(aoa('Season Breakdown'));
 
@@ -702,6 +712,8 @@ const nameHTML = n => {
   if (i === 0 || i === parts.length) return `<span class="sn">${esc(n)}</span>`;
   return `<span class="sn">${esc(parts.slice(0, i).join(' '))}</span> <span class="gn">${esc(parts.slice(i).join(' '))}</span>`;
 };
+const normName = n => String(n).toUpperCase().normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/g, '');
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const short = n => { const p = String(n).split(' '); return p.length > 1 ? p[0] : n; };
 const cellNum = (v, cls) => `<td class="num ${v ? (cls || '') : 'zero'}">${v || '·'}</td>`;
@@ -774,7 +786,8 @@ function matrixBlock(d){
 }
 
 function prof(d, p){
-  const base = (d.profiles && d.profiles[p.name]) || {};
+  const base = (d.profiles && d.profiles[p.name])
+    || (d.profilesNorm && d.profilesNorm[normName(p.name)]) || {};
   return {pos: p.pos || base.pos || '', nat: p.nat || base.nat || ''};
 }
 
