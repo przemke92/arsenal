@@ -199,6 +199,15 @@ td.zero{color:#4E4442}
 .mrow.cur .lab{color:var(--brass)}
 .mcells{display:flex;gap:2px}
 .mc{width:9px;height:9px;border-radius:1px;background:#2A2222}
+@media (prefers-reduced-motion:no-preference){
+  .matrix.anim .mc{animation:cellIn .34s var(--d) cubic-bezier(.2,.9,.3,1) both}
+  @keyframes cellIn{
+    from{opacity:0;transform:scale(.35)}
+    to{opacity:1;transform:scale(1)}
+  }
+  .matrix.anim .mrow .lab,.matrix.anim .mrow .pts{animation:labIn .4s var(--dl) ease both}
+  @keyframes labIn{from{opacity:0}to{opacity:1}}
+}
 .mc.w{background:var(--win)}
 .mc.d{background:var(--draw)}
 .mc.l{background:var(--loss)}
@@ -586,7 +595,7 @@ const COUNTER_KEY = 'arsenal_dashboard_przemke92_v1';   // change the suffix to 
 /* Paste your Realtime Database URL here to log which country visits came from.
    Leave it empty and the site simply counts visits without asking anything else. */
 const FIREBASE_DB = 'https://arsenal-dashboard-2d6e7-default-rtdb.europe-west1.firebasedatabase.app';
-const state = {data: null, source: 'none', err: null, sort: {}, sel: {}, player: null};
+const state = {data: null, source: 'none', err: null, sort: {}, sel: {}, player: null, matrixSeen: false};
 const DEFAULT_SORT = {ex: {col: 'apps', dir: -1}};   // everything else: shirt number, 1 upwards
 
 async function countVisit(){
@@ -783,21 +792,27 @@ function kpiBlock(d){
 function matrixBlock(d){
   const b = d.breakdown;
   const maxMw = Math.max(...b.matchweeks);
-  const rows = b.seasons.map(s => {
+  /* The wave only plays the first time the page is opened, so re-rendering
+     after a click does not replay the whole thing. */
+  const anim = !state.matrixSeen;
+  state.matrixSeen = true;
+  const rows = b.seasons.map((s, row) => {
     const vals = b.grid[s] || [];
     const cells = b.matchweeks.map((mw, i) => {
       const v = vals[i];
       const cls = v === null ? 'na' : v === 3 ? 'w' : v === 1 ? 'd' : 'l';
-      return `<div class="mc ${cls}" title="${esc(s)} · MW${mw}${v === null ? '' : ' · ' + v + ' pts'}"></div>`;
+      const delay = anim ? ` style="--d:${(i * 9 + row * 5)}ms"` : '';
+      return `<div class="mc ${cls}"${delay} title="${esc(s)} · MW${mw}${v === null ? '' : ' · ' + v + ' pts'}"></div>`;
     }).join('');
     const pts = b.sums[s], pos = b.positions[s];
+    const rowDelay = anim ? ` style="--dl:${row * 5}ms"` : '';
     return `<div class="mrow ${s === b.seasons[0] ? 'cur' : ''}">
-      <div class="lab">${esc(s)}</div>
+      <div class="lab"${rowDelay}>${esc(s)}</div>
       <div class="mcells">${cells}</div>
-      <div class="pts">${pts ? pts + ' · ' + (pos === 1 ? '🏆' : pos) : ''}</div>
+      <div class="pts"${rowDelay}>${pts ? pts + ' · ' + (pos === 1 ? '🏆' : pos) : ''}</div>
     </div>`;
   }).join('');
-  return `<div class="matrix">
+  return `<div class="matrix${anim ? ' anim' : ''}">
       <div class="mhead"><div class="lab"></div><div>MW 1 → ${maxMw}</div></div>
       ${rows}
       <div class="legend">
