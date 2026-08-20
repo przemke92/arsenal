@@ -648,7 +648,7 @@ const COUNTER_KEY = 'arsenal_dashboard_przemke92_v1';   // change the suffix to 
 /* Paste your Realtime Database URL here to log which country visits came from.
    Leave it empty and the site simply counts visits without asking anything else. */
 const FIREBASE_DB = 'https://arsenal-dashboard-2d6e7-default-rtdb.europe-west1.firebasedatabase.app';
-const state = {data: null, source: 'none', err: null, sort: {}, sel: {}, player: null, matrixSeen: false, lastRoute: null};
+const state = {data: null, source: 'none', err: null, sort: {}, sel: {}, player: null, matrixSeen: false, lastRoute: null, animateNow: false};
 const DEFAULT_SORT = {ex: {col: 'apps', dir: -1}};   // everything else: shirt number, 1 upwards
 
 async function countVisit(){
@@ -1255,15 +1255,19 @@ function render(){
   state.lastRoute = r;
   view.classList.remove('enter');
   view.innerHTML = html + (state.player ? playerPanel(d, state.player) : '');
-  if (routeChanged && !state.player) void view.offsetWidth, view.classList.add('enter');
+  if (routeChanged && !state.player){
+    void view.offsetWidth;
+    view.classList.add('enter');
+    state.animateNow = true;
+  }
   wire();
 }
 
-/* Counts each tile up to its value on a fresh page entry, keeping the original
-   number of decimals. */
+/* Counts each tile up to its value. Deliberately independent of the entrance
+   CSS: it is driven by a flag set in render(), so a styling change cannot
+   silently switch it off. Starts once the tile has faded in. */
 function animateCounters(){
-  const els = document.querySelectorAll('.main.enter .kpi .v');
-  if (!els.length) return;
+  const els = document.querySelectorAll('.kpi .v');
   let n = 0;
   els.forEach(el => {
     const m = el.textContent.trim().match(/^(\d+(?:\.\d+)?)$/);
@@ -1271,7 +1275,7 @@ function animateCounters(){
     const target = parseFloat(m[1]);
     if (!target) return;
     const dec = (m[1].split('.')[1] || '').length;
-    const dur = 700, begin = performance.now() + 150 + (n++) * 60;
+    const dur = 1000, begin = performance.now() + 320 + (n++) * 70;
     el.textContent = target.toFixed(dec).replace(/\d/g, '0');
     const step = now => {
       const t = Math.min(1, Math.max(0, (now - begin) / dur));
@@ -1320,7 +1324,7 @@ function wire(){
     render();
   });
 
-  animateCounters();
+  if (state.animateNow){ state.animateNow = false; animateCounters(); }
 
   const brand = document.querySelector('.brand');
   if (brand) brand.onclick = e => {
