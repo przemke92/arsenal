@@ -199,15 +199,14 @@ td.zero{color:#4E4442}
 .mrow.cur .lab{color:var(--brass)}
 .mcells{display:flex;gap:2px}
 .mc{width:9px;height:9px;border-radius:1px;background:#2A2222}
-@media (prefers-reduced-motion:no-preference){
-  .matrix.anim .mc{animation:cellIn .34s var(--d) cubic-bezier(.2,.9,.3,1) both}
-  @keyframes cellIn{
-    from{opacity:0;transform:scale(.35)}
-    to{opacity:1;transform:scale(1)}
-  }
-  .matrix.anim .mrow .lab,.matrix.anim .mrow .pts{animation:labIn .4s var(--dl) ease both}
-  @keyframes labIn{from{opacity:0}to{opacity:1}}
+.matrix.anim .mc{animation:cellIn .42s var(--d) cubic-bezier(.18,.9,.28,1) both}
+@keyframes cellIn{
+  0%{opacity:0;transform:scale(.15) translateY(6px)}
+  55%{opacity:1;transform:scale(1.35) translateY(0)}
+  100%{opacity:1;transform:scale(1)}
 }
+.matrix.anim .mrow .lab,.matrix.anim .mrow .pts{animation:labIn .45s var(--dl) ease both}
+@keyframes labIn{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
 .mc.w{background:var(--win)}
 .mc.d{background:var(--draw)}
 .mc.l{background:var(--loss)}
@@ -674,7 +673,7 @@ const PAGES = [
   {id: 'records', label: 'All-time records', group: 'Archive'}
 ];
 const route = () => (location.hash.replace(/^#\/?/, '').split('?')[0]) || '';
-window.addEventListener('hashchange', () => { state.player = null; render(); });
+window.addEventListener('hashchange', () => { state.player = null; state.matrixSeen = false; render(); });
 
 /* ============================================================
    4. VIEW HELPERS
@@ -795,7 +794,6 @@ function matrixBlock(d){
   /* The wave only plays the first time the page is opened, so re-rendering
      after a click does not replay the whole thing. */
   const anim = !state.matrixSeen;
-  state.matrixSeen = true;
   const rows = b.seasons.map((s, row) => {
     const vals = b.grid[s] || [];
     const cells = b.matchweeks.map((mw, i) => {
@@ -812,7 +810,7 @@ function matrixBlock(d){
       <div class="pts"${rowDelay}>${pts ? pts + ' · ' + (pos === 1 ? '🏆' : pos) : ''}</div>
     </div>`;
   }).join('');
-  return `<div class="matrix${anim ? ' anim' : ''}">
+  return `<div class="matrix" data-anim="${anim ? '1' : '0'}">
       <div class="mhead"><div class="lab"></div><div>MW 1 → ${maxMw}</div></div>
       ${rows}
       <div class="legend">
@@ -1234,6 +1232,21 @@ function wire(){
     state.sel.race = cur.includes(s) ? cur.filter(x => x !== s) : cur.concat([s]).slice(-6);
     render();
   });
+
+  const matrix = document.querySelector('.matrix[data-anim="1"]');
+  if (matrix){
+    const play = () => {
+      if (state.matrixSeen) return;
+      state.matrixSeen = true;
+      matrix.classList.add('anim');
+    };
+    if ('IntersectionObserver' in window){
+      const io = new IntersectionObserver(entries => {
+        entries.forEach(e => { if (e.isIntersecting){ play(); io.disconnect(); } });
+      }, {threshold: 0.05});
+      io.observe(matrix);
+    } else play();
+  }
 
   const drop = document.getElementById('drop'), pick = document.getElementById('pick');
   if (pick) pick.onchange = () => pick.files[0] && readFile(pick.files[0]);
