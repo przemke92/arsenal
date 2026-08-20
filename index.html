@@ -256,6 +256,22 @@ select:focus,input:focus,button:focus-visible,a:focus-visible{outline:2px solid 
 .scrim{position:fixed;inset:0;background:rgba(8,5,5,.72);display:flex;justify-content:flex-end;z-index:50}
 .panel{width:min(560px,100%);background:var(--ink);border-left:1px solid var(--line);
   height:100%;overflow-y:auto;padding:26px 28px 60px}
+.mug{
+  position:relative;width:132px;height:132px;margin-bottom:16px;border-radius:3px;
+  background:linear-gradient(160deg,var(--ink3),var(--ink2));
+  border:1px solid var(--line);overflow:hidden;display:flex;align-items:center;justify-content:center;
+}
+.mug img{width:100%;height:100%;object-fit:cover;object-position:top center;position:relative;z-index:2}
+.mug.nophoto img{display:none}
+.mug .mono{
+  position:absolute;font-family:var(--display);font-size:44px;color:var(--line);
+  letter-spacing:.02em;z-index:1;user-select:none;
+}
+.mug .shirtno{
+  position:absolute;right:7px;bottom:5px;z-index:3;
+  font-family:var(--mono);font-size:12px;color:var(--brass);
+  text-shadow:0 1px 3px rgba(10,7,7,.9);
+}
 .panel .close{float:right;background:none;border:none;color:var(--muted);font-size:24px;cursor:pointer;line-height:1}
 .panel h2{font-size:23px;line-height:1.06;margin-bottom:6px}
 
@@ -648,7 +664,7 @@ const COUNTER_KEY = 'arsenal_dashboard_przemke92_v1';   // change the suffix to 
 /* Paste your Realtime Database URL here to log which country visits came from.
    Leave it empty and the site simply counts visits without asking anything else. */
 const FIREBASE_DB = 'https://arsenal-dashboard-2d6e7-default-rtdb.europe-west1.firebasedatabase.app';
-const state = {data: null, source: 'none', err: null, sort: {}, sel: {}, player: null, matrixSeen: false, lastRoute: null, animateNow: false};
+const state = {data: null, source: 'none', err: null, sort: {}, sel: {}, player: null, matrixSeen: false, lastRoute: null, animateNow: false, photos: {}};
 const DEFAULT_SORT = {ex: {col: 'apps', dir: -1}};   // everything else: shirt number, 1 upwards
 
 async function countVisit(){
@@ -683,6 +699,17 @@ function clearPreview(){
   location.reload();
 }
 
+async function loadPhotos(){
+  try{
+    const r = await fetch('data/players.json?v=' + Date.now(), {cache: 'no-store'});
+    if (!r.ok) return;
+    const j = await r.json();
+    const map = {};
+    Object.keys(j).forEach(k => { map[normName(k)] = j[k]; });
+    state.photos = map;
+  }catch(e){ /* no photo map yet: monograms carry the panel */ }
+}
+
 async function boot(){
   const preview = readPreview();
   if (preview){ state.data = preview; state.source = 'local'; render(); return; }
@@ -697,6 +724,8 @@ async function boot(){
     if (SNAPSHOT){ state.data = SNAPSHOT; state.source = 'snapshot'; }
   }
   render();
+  await loadPhotos();
+  if (state.player) render();
 }
 
 function readFile(file){
@@ -1172,6 +1201,19 @@ function playerPanel(d, name){
 
   return `<div class="scrim" id="scrim"><div class="panel fade">
     <button class="close" id="closePanel" aria-label="Close">×</button>
+    ${(() => {
+      const inSquad = d.career.players.some(x => x.name === career.name);
+      if (!inSquad) return '';
+      const url = state.photos[normName(career.name)];
+      const parts = career.name.split(' ');
+      const initials = (parts[0][0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '');
+      return `<div class="mug">
+        ${url ? `<img src="${esc(url)}" alt="${esc(career.name)}" loading="lazy"
+             onerror="this.closest('.mug').classList.add('nophoto')">` : ''}
+        <span class="mono">${esc(initials.toUpperCase())}</span>
+        ${career.no ? `<span class="shirtno">${esc(career.no)}</span>` : ''}
+      </div>`;
+    })()}
     <div class="eyebrow">${esc(career.no ? 'No. ' + career.no : 'Player')}</div>
     <h2>${esc(career.name)}</h2>
     ${(() => { const pr = prof(d, career);
