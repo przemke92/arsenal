@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The Arsenal Dashboard</title>
-<link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAcCAYAAADRJblSAAAEP0lEQVR42uVYK4yrQBQ922zyRiKRSCQSiaxEIisrkZWVlchKJLKyshKJJHkGiUQinzk3OZm0S98u233Jm4QUmGF677m/c+ftN37hfx7vL/yvGEAOION9AGDmNQC4AbgA6F4JwNsLPCADcAKQAJgAtFRy5HwAIOUVAOgBHABc/zUAQgAlrTcDcN78zF/H+wlARABuVKqTvSYBwMBICFZGoEaudd7+nx2zd395/wv3bSl090AIx2ukNSOu3xKADEDD3wDAkWvPFOYKoOL6DEDNfVp6hVvZ+DmA4f1JFz5TkO2TntJS6a08J+IJB7HGRDAKzrcULiIo5kVrjw7AuFlYdKIQDsD+SeV7JjWz5EBlE76rRXlLgmeuTSUkUq6fv8EDHIEdNguLSioeUZGlYe685XWVmO7v7B94cdkRqDO9IeW3Eb1kTQAAoN88kTQCXkvDLLbjd8WdP/T3nh/sZWCXDJE978MvKh4STJOtX6oCJS0ISWaPxo2KphLPMV0+4F61WLqhqx+4zhLTiYLuxAuuXNtwn49GJfuF4mnOM8QVQP5MGYyljmcPQiHk+5xCW4k70p133KPjfCnWrSl0Ipyh4l6VKLDnfsGdPBVKGY1JqCZ62Mj7QZ5H88BneYAjYumdWLb5ULiCeY5l+5LKn+hJe+43U9Ezn41nnCXuS+5zoeAxlYkJUCakaeS7/ruYYEHB4JGenJaJxQNyzh+EBBkQhYTWga4dCUAV34NzAd+bNS0vmdf1n00Ka1HhM5W3EDmLgpCaPtL6nSho4WVhUBDUTEpjJ5Vk4truK4qv1Qw5qRSzUFufFg8kOMYHZipheSLxSqDxiVY4AYQxNmvVw80Xv5/Fwk6YnfPmd7SsYyxb1bjJu5Dg1dIgWcgouKuOzUrun4hwo1fWelrbEqN1fpaNEz5rwrvxPbzKE67h9msCYCXuSKUd3TOn+zaS4MB3V2GYO2l9rdlKJGQaglNLqWv/lQORmm5treuRitdUquV8wvtQXLqVulx4fUJPcCrhARfpHoefBiCW0pRKj29CNhISlZS1o8RyJ2cGA5XuhRTduM/OY6XVT+eAI4UfJHM7ETCSet0SoNBrf7U38HuEiUpbObzyv0qu/TEAdiLInq4+eZk+FuLiCESw0EY/aob2QrBCYZXTKwEwyxmxudDC9Z2TlVbq8yBJbUuv0ay+1FF2BNyIjx2SrG59PwcEUpJyOcRsaIHRY3YFLRVKvPac6wjCls+NnBI1nuvbYUshnZ8Rn15A/paxkQTW83fnxW8p9bqUM7o9vSES5a2XT6VpCYXSTgQzkhAI6SWWV3LhCbN8962nwoOUslEaGyMtiRxVmavfFvYOGDo5vzlKxXB36LKFwElqf/lBnlgVgIoWneTgwHrnTmjrZ1jYVvi+VYdOQiqS0As4f1ib8CwBEFEAPTAYV0bfStvW6x3s0NM8q8cLxx9AlYp5zYpp8wAAAABJRU5ErkJggg==">
+<link rel="icon" type="image/png" href="data:image/png;base64,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">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-title" content="Arsenal">
 <meta name="theme-color" content="#141010">
@@ -256,31 +256,35 @@ select:focus,input:focus,button:focus-visible,a:focus-visible{outline:2px solid 
 .scrim{position:fixed;inset:0;background:rgba(8,5,5,.72);display:flex;justify-content:flex-end;z-index:50}
 .panel{width:min(560px,100%);background:var(--ink);border-left:1px solid var(--line);
   height:100%;overflow-y:auto;padding:26px 28px 60px}
+.phead{display:flex;gap:16px;align-items:flex-start;margin:22px 0 20px}
+.pinfo{flex:1;min-width:0}
+.pmeta{font-size:14px;margin:4px 0 8px}
+.pstats{color:var(--muted);font-size:13px}
 .mug{
-  position:relative;width:128px;height:154px;margin-bottom:16px;border-radius:3px;
-  background:radial-gradient(120% 80% at 50% 22%,#2A2222 0%,var(--ink2) 62%,var(--ink2) 100%);
+  position:relative;flex:0 0 104px;width:104px;height:124px;border-radius:3px;
+  background:radial-gradient(120% 78% at 50% 18%,#2C2323 0%,var(--ink2) 65%,var(--ink2) 100%);
   border:1px solid var(--line);overflow:hidden;
-  display:flex;align-items:flex-end;justify-content:center;
+  display:flex;align-items:center;justify-content:center;
 }
-/* contain, not cover: the whole portrait fits and nothing is cropped off the top */
-.mug img{
-  width:100%;height:100%;object-fit:contain;object-position:bottom center;
-  padding:10px 6px 0;position:relative;z-index:2;
-}
+/* cover with the crop pushed to the top: fills the frame and keeps the head high,
+   instead of leaving a pool of empty space above it */
+.mug img{width:100%;height:100%;object-fit:cover;object-position:50% 6%;position:relative;z-index:2}
 .mug.nophoto img{display:none}
 .mug.withphoto .mono{display:none}
 .mug.withphoto.nophoto .mono{display:block}
 .mug .mono{
   position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  font-family:var(--display);font-size:42px;color:var(--line);
-  letter-spacing:.02em;z-index:1;user-select:none;
+  font-family:var(--display);font-size:34px;color:var(--line);z-index:1;user-select:none;
 }
 .mug .shirtno{
-  position:absolute;right:8px;bottom:6px;z-index:3;
-  font-family:var(--mono);font-size:12px;color:var(--brass);
+  position:absolute;right:7px;bottom:5px;z-index:3;
+  font-family:var(--mono);font-size:11px;color:var(--brass);
   text-shadow:0 1px 4px rgba(10,7,7,.95);
 }
-.panel .close{float:right;background:none;border:none;color:var(--muted);font-size:24px;cursor:pointer;line-height:1}
+.panel{position:relative}
+.panel .close{position:absolute;top:10px;right:14px;background:none;border:none;
+  color:var(--muted);font-size:24px;cursor:pointer;line-height:1;z-index:6}
+.panel .close:hover{color:var(--parchment)}
 .panel h2{font-size:23px;line-height:1.06;margin-bottom:6px}
 
 /* ---------- status ---------- */
@@ -1209,28 +1213,32 @@ function playerPanel(d, name){
 
   return `<div class="scrim" id="scrim"><div class="panel fade">
     <button class="close" id="closePanel" aria-label="Close">×</button>
-    ${(() => {
-      const inSquad = d.career.players.some(x => x.name === career.name);
-      if (!inSquad) return '';
-      const url = state.photos[normName(career.name)];
-      const parts = career.name.split(' ');
-      const initials = (parts[0][0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '');
-      return `<div class="mug${url ? ' withphoto' : ''}">
-        ${url ? `<img src="${esc(url)}" alt="${esc(career.name)}" loading="lazy"
-             onerror="this.closest('.mug').classList.add('nophoto')">` : ''}
-        <span class="mono">${esc(initials.toUpperCase())}</span>
-        ${career.no ? `<span class="shirtno">${esc(career.no)}</span>` : ''}
-      </div>`;
-    })()}
-    <div class="eyebrow">${esc(career.no ? 'No. ' + career.no : 'Player')}</div>
-    <h2>${esc(career.name)}</h2>
-    ${(() => { const pr = prof(d, career);
-      return (pr.pos || pr.nat) ? `<div style="margin-bottom:10px;font-size:14px">
-        ${pr.pos ? `<span style="color:var(--brass)">${esc(pr.pos)}</span>` : ''}
-        ${pr.pos && pr.nat ? '<span style="color:var(--muted)"> · </span>' : ''}
-        ${pr.nat ? `<span>${flagImg(pr.nat)} ${esc(natName(pr.nat))}</span>` : ''}</div>` : ''; })()}
-    <div class="num" style="color:var(--muted);margin-bottom:20px">
-      ${career.total.a} apps · ${career.total.g} goals · ${ratio(career.total.g, career.total.a)} per game</div>
+    <div class="phead">
+      <div class="pinfo">
+        <div class="eyebrow">${esc(career.no ? 'No. ' + career.no : 'Player')}</div>
+        <h2>${esc(career.name)}</h2>
+        ${(() => { const pr = prof(d, career);
+          return (pr.pos || pr.nat) ? `<div class="pmeta">
+            ${pr.pos ? `<span style="color:var(--brass)">${esc(pr.pos)}</span>` : ''}
+            ${pr.pos && pr.nat ? '<span style="color:var(--muted)"> · </span>' : ''}
+            ${pr.nat ? `<span>${flagImg(pr.nat)} ${esc(natName(pr.nat))}</span>` : ''}</div>` : ''; })()}
+        <div class="num pstats">
+          ${career.total.a} apps · ${career.total.g} goals · ${ratio(career.total.g, career.total.a)} per game</div>
+      </div>
+      ${(() => {
+        const inSquad = d.career.players.some(x => x.name === career.name);
+        if (!inSquad) return '';
+        const url = state.photos[normName(career.name)];
+        const parts = career.name.split(' ');
+        const initials = (parts[0][0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '');
+        return `<div class="mug${url ? ' withphoto' : ''}">
+          ${url ? `<img src="${esc(url)}" alt="${esc(career.name)}" loading="lazy"
+               onerror="this.closest('.mug').classList.add('nophoto')">` : ''}
+          <span class="mono">${esc(initials.toUpperCase())}</span>
+          ${career.no ? `<span class="shirtno">${esc(career.no)}</span>` : ''}
+        </div>`;
+      })()}
+    </div>
     <div class="tablewrap"><table class="fixed" style="min-width:0">
       <colgroup><col><col style="width:64px"><col style="width:64px"></colgroup>
       <thead><tr><th class="l">Competition</th><th>Apps</th><th>Gls</th></tr></thead>
