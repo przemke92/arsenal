@@ -1,0 +1,34 @@
+{
+  "clubs": {
+    "Coventry City": "",
+    "Aston Villa": "",
+    "Chelsea": "",
+    "Sunderland": "",
+    "Brighton & Hove Albion": "",
+    "Leeds United": "",
+    "Nottingham Forest": "",
+    "Everton": "",
+    "Liverpool": "",
+    "Hull City": "",
+    "Newcastle United": "",
+    "Manchester City": "",
+    "Brentford": "",
+    "Tottenham Hotspur": "",
+    "Bournemouth": "",
+    "Manchester United": "",
+    "Crystal Palace": "",
+    "Fulham": "",
+    "Ipswich Town": "",
+    "Arsenal": ""
+  },
+  "competitions": {
+    "Premier League": "",
+    "UEFA Champions League": "",
+    "FA Cup": "",
+    "Carabao Cup": "",
+    "EFL Cup": "",
+    "FA Community Shield": "",
+    "Community Shield": "",
+    "Europe": ""
+  }
+}
