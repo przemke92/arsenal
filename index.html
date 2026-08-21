@@ -109,6 +109,19 @@ h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:-.005em;text-
 .badge.mono{background:var(--ink3);color:var(--muted);font-family:var(--mono);font-size:12px}
 .mfoot .badge.mono{font-size:9px}
 @media (max-width:620px){.matchbar{grid-template-columns:1fr}}
+/* On a desktop there is room to let the crests breathe: at 34px a raster logo
+   is being squeezed into far fewer pixels than it ships with, which is what
+   made them look coarse. */
+@media (min-width:621px){
+  .mtop{gap:15px}
+  .badge{width:56px;height:56px;border-radius:4px}
+  .badge.mono{font-size:18px}
+  .mfoot{gap:10px}
+  .mfoot .badge{width:26px;height:26px}
+  .mfoot .badge.mono{font-size:11px}
+  .mclub{font-size:19px}
+  .mscore{font-size:26px}
+}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
 .kpi{background:var(--ink2);padding:14px 16px}
 .kpi .v{font-family:var(--mono);font-size:26px;font-weight:600;line-height:1.1;
@@ -1374,8 +1387,7 @@ function pageExPlayers(d){
     no: p => (p.no === '' || isNaN(parseInt(p.no))) ? 9999 : parseInt(p.no), name: p => p.name,
     pos: p => (['GK', 'DF', 'MF', 'FW'].indexOf(posGroup(prof(d, p).pos)) + 1) || 9,
     nat: p => prof(d, p).nat || 'zzz',
-    apps: p => p.total.a, goals: p => p.total.g, assists: p => p.total.s || 0,
-    ratio: p => p.total.a ? p.total.g / p.total.a : -1
+    apps: p => p.total.a, goals: p => p.total.g, assists: p => p.total.s || 0
   };
   const rows = sortTable(list, s.col, s.dir, getters);
   const th = (col, label, cls) =>
@@ -1386,11 +1398,11 @@ function pageExPlayers(d){
        <span class="hint num" style="color:var(--muted)">${rows.length} shown</span></div>
     <div class="tablewrap"><table class="fixed sq">
       <colgroup><col class="c-no"><col class="c-pos"><col class="c-nat"><col class="c-name">
-        <col class="c-tot"><col class="c-tot">${ast ? '<col class="c-tot">' : ''}<col class="c-ratio">
+        <col class="c-tot"><col class="c-tot">${ast ? '<col class="c-tot">' : ''}
       </colgroup>
       <thead><tr>
         ${th('no', '#')}${th('pos', 'Pos', 'c')}${th('nat', 'Nat', 'c')}${th('name', 'Player', 'l')}
-        ${th('apps', 'App')}${th('goals', 'Gls')}${ast ? th('assists', 'Ast') : ''}${th('ratio', 'G/A')}
+        ${th('apps', 'App')}${th('goals', 'Gls')}${ast ? th('assists', 'Ast') : ''}
       </tr></thead>
       <tbody>${rows.map(p => {
         const pr = prof(d, p);
@@ -1402,7 +1414,6 @@ function pageExPlayers(d){
         <td class="num"><b>${p.total.a}</b></td>
         <td class="num goal"><b>${p.total.g || '·'}</b></td>
         ${ast ? `<td class="num assist"><b>${p.total.s || '·'}</b></td>` : ''}
-        <td class="num" style="color:var(--muted)">${ratio(p.total.g, p.total.a)}</td>
       </tr>`;}).join('')}</tbody></table></div>`;
 }
 
