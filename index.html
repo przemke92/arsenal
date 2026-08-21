@@ -444,6 +444,17 @@ select:focus,input:focus,button:focus-visible,a:focus-visible{outline:2px solid 
   .fixed td.l,.fixed th.l{font-size:12px}
   .fixed td.name{white-space:normal;text-overflow:clip;line-height:1.15;padding-top:5px;padding-bottom:5px}
   .fixed td.name .gn{display:block;font-size:11px}
+
+  table.exlist{table-layout:auto;min-width:0;width:100%}
+  table.exlist col{width:auto}
+  table.exlist th:nth-child(2),table.exlist td:nth-child(2),
+  table.exlist th:nth-child(3),table.exlist td:nth-child(3),
+  table.exlist th:nth-child(4),table.exlist td:nth-child(4){position:static;left:auto}
+  table.exlist th,table.exlist td{padding:8px 5px}
+  table.exlist th:first-child,table.exlist td:first-child{padding-left:8px}
+  table.exlist td.name{width:auto;min-width:0}
+  table.exlist td.num,table.exlist th:not(.l){white-space:nowrap}
+  table.exlist thead tr:first-child th{position:sticky;top:0;z-index:2;background:var(--ink2)}
 }
 @media (max-width:900px){
   .shell{display:block}
@@ -1502,7 +1513,7 @@ function pageExPlayers(d){
     d.exPlayers.players.length + ' players who have left, with their totals across every competition.')
     + `<div class="controls"><input type="search" id="exq" placeholder="Search a name" value="${esc(state.sel.exq || '')}">
        <span class="hint num" style="color:var(--muted)">${rows.length} shown</span></div>
-    <div class="tablewrap"><table class="fixed sq">
+    <div class="tablewrap"><table class="fixed sq exlist">
       <colgroup><col class="c-no"><col class="c-pos"><col class="c-nat"><col class="c-name">
         <col class="c-tot"><col class="c-tot">${ast ? '<col class="c-tot">' : ''}
       </colgroup>
