@@ -162,6 +162,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:-.005em;text-
   border-left:1px solid var(--ink3);
 }
 .fixed thead th.grp:first-of-type{border-left:none}
+.fixed thead th.grp.tot{color:var(--brass);border-right:1px solid var(--line)}
 .narrow .fixed{min-width:0}
 table{border-collapse:collapse;width:100%;font-size:14px}
 thead th{
@@ -194,7 +195,8 @@ td.zero{color:#4E4442}
 .assist{color:var(--brass);font-weight:600}
 
 /* ---------- ledger grid ---------- */
-.ledger{overflow:auto;border:1px solid var(--line);max-height:74vh}
+.ledger{overflow:auto;border:1px solid var(--line);max-height:74vh;--w-pn:186px;--w-tt:48px}
+@media (max-width:900px){.ledger{--w-pn:140px;--w-tt:42px}}
 .ledger table{border-collapse:separate;border-spacing:0}
 .ledger th.fix{
   padding:0;background:var(--ink2);border-bottom:1px solid var(--line);
@@ -205,16 +207,30 @@ td.zero{color:#4E4442}
   writing-mode:vertical-rl;transform:rotate(180deg);height:76px;margin:0 auto;white-space:nowrap;overflow:hidden}
 .ledger th.fix .st{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:5px}
 .ledger th.corner{position:sticky;left:0;top:0;z-index:3;background:var(--ink2);text-align:left;
-  border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:170px}
-.ledger td.pname{position:sticky;left:0;background:var(--ink);border-right:1px solid var(--line);
-  text-align:left;font-size:13px;min-width:170px;z-index:1}
+  border-bottom:1px solid var(--line);width:var(--w-pn);min-width:var(--w-pn);max-width:var(--w-pn)}
+.ledger td.pname{position:sticky;left:0;background:var(--ink);
+  text-align:left;font-size:13px;z-index:1;
+  width:var(--w-pn);min-width:var(--w-pn);max-width:var(--w-pn);
+  overflow:hidden;text-overflow:ellipsis}
 .ledger tr:hover td.pname{background:var(--ink2)}
+/* Apps and Gls are pinned beside the name, so the season total stays on screen
+   however far right the fixture grid is scrolled. */
+.ledger th.toth{position:sticky;top:0;z-index:3;background:var(--ink2);
+  border-bottom:1px solid var(--line);text-align:right;padding-right:10px;
+  width:var(--w-tt);min-width:var(--w-tt);max-width:var(--w-tt)}
+.ledger th.toth.t1,.ledger td.tot.t1{left:var(--w-pn)}
+.ledger th.toth.t2,.ledger td.tot.t2{left:calc(var(--w-pn) + var(--w-tt));
+  border-right:1px solid var(--line)}
+.ledger th.toth.t2{box-shadow:1px 0 0 var(--line)}
+.ledger tr:hover td.tot{background:var(--ink2)}
 .ledger td.cell{width:30px;height:26px;text-align:center;padding:0;border-bottom:1px solid var(--ink3)}
 .pip{display:inline-flex;align-items:center;justify-content:center;width:20px;height:18px;
   border-radius:2px;font-family:var(--mono);font-size:11px;font-weight:600}
 .pip.app{background:var(--ink3);color:var(--muted)}
 .pip.scored{background:var(--red);color:#fff}
-.ledger td.tot{border-left:1px solid var(--line);min-width:46px;font-family:var(--mono);font-size:12px;text-align:right;padding-right:10px}
+.ledger td.tot{position:sticky;z-index:1;background:var(--ink);font-family:var(--mono);font-size:12px;
+  text-align:right;padding-right:10px;border-bottom:1px solid var(--ink3);
+  width:var(--w-tt);min-width:var(--w-tt);max-width:var(--w-tt)}
 
 /* ---------- points matrix (hero) ---------- */
 .matrix{overflow-x:auto;border:1px solid var(--line);background:var(--ink2);padding:14px 16px 16px}
@@ -429,7 +445,7 @@ select:focus,input:focus,button:focus-visible,a:focus-visible{outline:2px solid 
         <span class="l2">Dashboard</span>
       </span>
     </a>
-    <div class="navgroup">Squad</div>
+    <div class="navgroup">Overview</div>
     <div class="railnav" id="nav"></div>
     <div class="status" id="status"></div>
   </nav>
@@ -840,7 +856,8 @@ function readFile(file){
    3. ROUTING
    ============================================================ */
 const PAGES = [
-  {id: '', label: 'Squad', group: 'Squad'},
+  {id: '', label: 'Home', group: 'Overview'},
+  {id: 'squad', label: 'Squad', group: 'Squad'},
   {id: 'season', label: 'By season', group: 'Squad'},
   {id: 'premier-league', label: 'Premier League', group: 'Competitions'},
   {id: 'europe', label: 'Europe', group: 'Competitions'},
@@ -949,26 +966,56 @@ function sortTable(rows, key, dir, getters){
 /* ============================================================
    5. PAGES
    ============================================================ */
-function kpiBlock(d){
+const topOf = (arr, f) => arr.slice().sort((a, b) => f(b) - f(a))[0] || null;
+const tile = (v, label, name) => `<div class="kpi">
+    <div class="v">${v || '—'}</div><div class="l">${esc(label)}</div>
+    <div class="s">${v ? esc(name) : 'nothing recorded yet'}</div></div>`;
+
+/* '26-27' as the season sheets name it → '2026/27' as Season Breakdown does. */
+function breakdownKey(k){
+  const m = String(k).match(/^(\d{2})\s*[-\/]\s*(\d{2})$/);
+  return m ? '20' + m[1] + '/' + m[2] : String(k);
+}
+
+function kpiSeason(d){
   const key = d.currentSeason;
   const cur = d.seasons[key];
-  const top = (arr, f) => arr.slice().sort((a, b) => f(b) - f(a))[0];
-  const scorer = top(cur.players, p => p.total.g);
-  const assister = top(cur.players, p => p.total.s || 0);
-  const appsLeader = top(cur.players, p => p.total.a);
-  const mostApps = top(d.career.players, p => p.total.a);
-  const mostGoals = top(d.career.players, p => p.total.g);
-  const mostAssists = top(d.career.players, p => p.total.s || 0);
-  const tile = (v, label, name) => `<div class="kpi">
-      <div class="v">${v || '—'}</div><div class="l">${esc(label)}</div>
-      <div class="s">${v ? esc(name) : 'nothing recorded yet'}</div></div>`;
+  if (!cur) return '';
+  const scorer = topOf(cur.players, p => p.total.g);
+  const assister = topOf(cur.players, p => p.total.s || 0);
+  const appsLeader = topOf(cur.players, p => p.total.a);
+  const b = d.breakdown || {}, bk = breakdownKey(key);
+  const pts = (b.sums || {})[bk], pos = (b.positions || {})[bk];
+  const league = pts ? `<div class="kpi">
+      <div class="v">${pts}</div><div class="l">League points ${esc(key)}</div>
+      <div class="s">${pos ? (pos === 1 ? '🏆 champions' : 'position ' + pos) : 'in progress'}</div>
+    </div>` : '';
   return `<div class="kpis">
-      ${tile(scorer.total.g, 'Top scorer ' + key, scorer.name)}
-      ${tile(assister.total.s || 0, 'Most assists ' + key, assister.name)}
-      ${tile(appsLeader.total.a, 'Most apps ' + key, appsLeader.name)}
+      ${tile(scorer.total.g, 'Top scorer', scorer.name)}
+      ${tile(assister.total.s || 0, 'Most assists', assister.name)}
+      ${tile(appsLeader.total.a, 'Most apps', appsLeader.name)}
+      ${league}
+    </div>`;
+}
+
+function kpiClub(d){
+  const mostApps = topOf(d.career.players, p => p.total.a);
+  const mostGoals = topOf(d.career.players, p => p.total.g);
+  const mostAssists = topOf(d.career.players, p => p.total.s || 0);
+  return `<div class="kpis">
+      ${tile(mostApps.total.a, 'Most apps at the club', mostApps.name)}
       ${tile(mostGoals.total.g, 'Most goals at the club', mostGoals.name)}
       ${tile(mostAssists.total.s || 0, 'Most assists at the club', mostAssists.name)}
-      ${tile(mostApps.total.a, 'Most apps at the club', mostApps.name)}
+    </div>`;
+}
+
+function kpiAllTime(d){
+  const r = d.records || {};
+  const a = (r.apps || [])[0], g = (r.goals || [])[0];
+  if (!a && !g) return '';
+  return `<div class="kpis">
+      ${a ? tile(a.apps, 'Most appearances, all time', a.name) : ''}
+      ${g ? tile(g.goals, 'Most goals, all time', g.name) : ''}
     </div>`;
 }
 
@@ -1021,8 +1068,7 @@ function squadTable(d, set, key, dflt){
     no: p => (p.no === '' || isNaN(parseInt(p.no))) ? 9999 : parseInt(p.no), name: p => p.name,
     pos: p => (['GK', 'DF', 'MF', 'FW'].indexOf(posGroup(prof(d, p).pos)) + 1) || 9,
     nat: p => prof(d, p).nat || 'zzz',
-    apps: p => p.total.a, goals: p => p.total.g, assists: p => p.total.s || 0,
-    ratio: p => p.total.a ? p.total.g / p.total.a : -1
+    apps: p => p.total.a, goals: p => p.total.g, assists: p => p.total.s || 0
   };
   comps.forEach(c => {
     getters['a_' + c] = p => p.comps[c].a;
@@ -1033,19 +1079,21 @@ function squadTable(d, set, key, dflt){
   const th = (col, label, cls) =>
     `<th class="${cls || ''} sortable ${s.col === col ? 'sorted' : ''}" data-sort="${col}" data-key="${key}">${label}${s.col === col ? (s.dir < 0 ? ' ↓' : ' ↑') : ''}</th>`;
   const span = ast ? 3 : 2;
+  /* Total sits first, right beside the name, so the headline number is the one
+     you see without scrolling; the per-competition split follows to its right. */
   const cols = `<colgroup>
       <col class="c-no"><col class="c-pos"><col class="c-nat"><col class="c-name">
+      <col class="c-tot"><col class="c-tot">${ast ? '<col class="c-tot">' : ''}
       ${comps.map(() => '<col class="c-stat"><col class="c-stat">' + (ast ? '<col class="c-stat">' : '')).join('')}
-      <col class="c-tot"><col class="c-tot">${ast ? '<col class="c-tot">' : ''}<col class="c-ratio">
     </colgroup>`;
   return `<div class="tablewrap"><table class="fixed sq">${cols}
     <thead>
       <tr>${th('no', '#')}${th('pos', 'Pos', 'c')}${th('nat', 'Nat', 'c')}${th('name', 'Player', 'l')}
-      ${comps.map(c => `<th class="grp" colspan="${span}">${esc(c)}</th>`).join('')}
-      <th class="grp" colspan="${span}">Total</th>${th('ratio', 'G/A')}</tr>
+      <th class="grp tot" colspan="${span}">Total</th>
+      ${comps.map(c => `<th class="grp" colspan="${span}">${esc(c)}</th>`).join('')}</tr>
       <tr><th></th><th></th><th></th><th class="l"></th>
-      ${comps.map(c => th('a_' + c, 'App', 'c') + th('g_' + c, 'Gls', 'c') + (ast ? th('s_' + c, 'Ast', 'c') : '')).join('')}
-      ${th('apps', 'App')}${th('goals', 'Gls')}${ast ? th('assists', 'Ast') : ''}<th></th></tr>
+      ${th('apps', 'App')}${th('goals', 'Gls')}${ast ? th('assists', 'Ast') : ''}
+      ${comps.map(c => th('a_' + c, 'App', 'c') + th('g_' + c, 'Gls', 'c') + (ast ? th('s_' + c, 'Ast', 'c') : '')).join('')}</tr>
     </thead>
     <tbody>${rows.map(p => {
       const pr = prof(d, p);
@@ -1054,12 +1102,14 @@ function squadTable(d, set, key, dflt){
       <td class="c pos" title="${esc(pr.pos)}">${esc(posShort(pr.pos)) || '·'}</td>
       <td class="c nat">${pr.nat ? flagImg(pr.nat) : '·'}</td>
       <td class="l name">${nameHTML(p.name)}</td>
-      ${comps.map(c => cellNum(p.comps[c].a) + cellNum(p.comps[c].g, 'goal')
-        + (ast ? cellNum(p.comps[c].s, 'assist') : '')).join('')}
-      <td class="num" style="border-left:1px solid var(--line)"><b>${p.total.a}</b></td>
+      <td class="num"><b>${p.total.a}</b></td>
       <td class="num goal"><b>${p.total.g || '·'}</b></td>
       ${ast ? `<td class="num assist"><b>${p.total.s || '·'}</b></td>` : ''}
-      <td class="num" style="color:var(--muted)">${ratio(p.total.g, p.total.a)}</td>
+      ${comps.map((c, i) => {
+        const edge = i === 0 ? ' style="border-left:1px solid var(--line)"' : '';
+        return `<td class="num ${p.comps[c].a ? '' : 'zero'}"${edge}>${p.comps[c].a || '·'}</td>`
+          + cellNum(p.comps[c].g, 'goal') + (ast ? cellNum(p.comps[c].s, 'assist') : '');
+      }).join('')}
     </tr>`;}).join('')}</tbody></table></div>`;
 }
 
@@ -1105,6 +1155,22 @@ function matchBar(d){
   return `<div class="matchbar">${next}${last}</div>`;
 }
 
+function pageHome(d){
+  const key = d.currentSeason;
+  return head('The Arsenal Dashboard', 'Home',
+    'Where the season stands right now, and the names at the top of the ledger.')
+    + matchBar(d)
+    + `<div class="section-h"><h2>Season ${esc(key)}</h2>
+        <span class="hint">this campaign, all competitions</span></div>`
+    + kpiSeason(d)
+    + `<div class="section-h"><h2>The current squad</h2>
+        <span class="hint">totals since each player joined</span></div>`
+    + kpiClub(d)
+    + `<div class="section-h"><h2>Club records</h2>
+        <span class="hint">every Arsenal player, all time</span></div>`
+    + kpiAllTime(d);
+}
+
 function pageSquad(d){
   const f = state.sel.pos || '';
   const hasProfiles = Object.keys(d.profiles || {}).length > 0;
@@ -1116,9 +1182,7 @@ function pageSquad(d){
     }).join('')}</div>` : '';
   return head('Squad', 'Arsenal squad statistics',
     'Every appearance and goal for the current squad, in all competitions, since they joined. Click a name for a season-by-season breakdown.')
-    + matchBar(d)
-    + kpiBlock(d)
-    + `<div class="section-h"><h2>The squad</h2><span class="hint">Apps = appearances · Gls = goals · by shirt number</span></div>`
+    + `<div class="section-h" style="margin-top:8px"><h2>The squad</h2><span class="hint">Apps = appearances · Gls = goals · by shirt number</span></div>`
     + chips
     + squadTable(d, set, 'squad');
 }
@@ -1147,20 +1211,19 @@ function pageComp(d, id){
   const thead = `<tr><th class="corner">
       <div style="font-family:var(--mono);font-size:10px;color:var(--muted);padding:8px 10px">
         ${anyPlayed} of ${c.fixtures.length} played</div></th>
+    <th class="toth t1">Apps</th><th class="toth t2">Gls</th>
     ${c.fixtures.map((f, i) => `<th class="fix"><div class="box">
       <div class="opp" style="${played[i] ? '' : 'color:var(--muted)'}">${esc(f.opponent || '—')}</div>
-      <div class="st">${esc(String(f.stage).slice(0, 3))}</div></div></th>`).join('')}
-    <th class="fix" style="text-align:right;padding-right:10px">Apps</th>
-    <th class="fix" style="text-align:right;padding-right:10px">Gls</th></tr>`;
+      <div class="st">${esc(String(f.stage).slice(0, 3))}</div></div></th>`).join('')}</tr>`;
 
   const body = players.map(p => `<tr>
     <td class="pname">${nameHTML(p.name)}${(() => {
       const ps = posShort(prof(d, p).pos); return ps ? `<span class="tag">${esc(ps)}</span>` : ''; })()}</td>
+    <td class="tot t1">${p.a || '·'}</td>
+    <td class="tot t2 ${p.g ? 'goal' : ''}">${p.g || '·'}</td>
     ${p.cells.map(x => `<td class="cell">${
       x.g > 0 ? `<span class="pip scored">${x.g}</span>` :
-      x.a > 0 ? `<span class="pip app">1</span>` : ''}</td>`).join('')}
-    <td class="tot">${p.a || '·'}</td>
-    <td class="tot ${p.g ? 'goal' : ''}">${p.g || '·'}</td></tr>`).join('');
+      x.a > 0 ? `<span class="pip app">1</span>` : ''}</td>`).join('')}</tr>`).join('');
 
   return head('Competition', c.label, '')
     + `<div class="kpis" style="margin-bottom:18px">
@@ -1472,7 +1535,8 @@ function render(){
   }
   const r = route();
   let html;
-  if (r === '' || r === 'squad') html = pageSquad(d);
+  if (r === '') html = pageHome(d);
+  else if (r === 'squad') html = pageSquad(d);
   else if (r === 'season') html = pageSeason(d);
   else if (r === 'history') html = pageHistory(d);
   else if (r === 'ex-players') html = pageExPlayers(d);
