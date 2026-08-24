@@ -122,10 +122,13 @@ h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:-.005em;text-
   .mclub{font-size:19px}
   .mscore{font-size:26px}
 }
-.countdown{display:flex;gap:9px;justify-content:center;margin:13px 0 1px;padding-top:12px;border-top:1px solid var(--ink3)}
-.cseg{display:flex;flex-direction:column;align-items:center;min-width:32px}
-.cval{font-family:var(--mono);font-size:19px;font-weight:600;color:var(--brass);font-variant-numeric:tabular-nums;line-height:1}
-.clab{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.12em;margin-top:3px}
+.kickoff{grid-column:1/-1;background:var(--ink2);padding:15px 16px 16px;text-align:center}
+.klabel{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--brass);
+  text-transform:uppercase;margin-bottom:10px}
+.countdown{display:flex;gap:20px;justify-content:center}
+.cseg{display:flex;flex-direction:column;align-items:center;min-width:36px}
+.cval{font-family:var(--mono);font-size:23px;font-weight:600;color:var(--parchment);font-variant-numeric:tabular-nums;line-height:1}
+.clab{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.12em;margin-top:4px}
 
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
 /* an odd number of tiles under a 2-up mobile grid leaves one lonely tile with
@@ -1250,7 +1253,6 @@ function matchCard(rec, kind){
   const club = rec.club, comp = rec.competition || '';
   const venue = rec['h/a'] || rec.venue || '';
   const when = [rec.date, rec.time].filter(Boolean).join(' · ');
-  const target = kind === 'next' ? parseMatchDate(rec.date, rec.time) : null;
   return `<div class="mcard">
     <div class="mlabel">${kind === 'next' ? 'Next game' : 'Last game'}</div>
     <div class="mtop">
@@ -1261,12 +1263,6 @@ function matchCard(rec, kind){
       </div>
       ${rec.score ? `<div class="mscore">${esc(rec.score)}</div>` : ''}
     </div>
-    ${target ? `<div class="countdown" id="countdown" data-target="${target.getTime()}">
-      <div class="cseg"><span class="cval" data-u="d">–</span><span class="clab">D</span></div>
-      <div class="cseg"><span class="cval" data-u="h">–</span><span class="clab">H</span></div>
-      <div class="cseg"><span class="cval" data-u="m">–</span><span class="clab">M</span></div>
-      <div class="cseg"><span class="cval" data-u="s">–</span><span class="clab">S</span></div>
-    </div>` : ''}
     <div class="mfoot">
       ${comp ? badgeFor(comp, 'competitions') : ''}
       <span class="mcomp">${esc(comp)}</span>
@@ -1275,11 +1271,26 @@ function matchCard(rec, kind){
   </div>`;
 }
 
+function kickoffStrip(rec){
+  if (!rec || !rec.club) return '';
+  const target = parseMatchDate(rec.date, rec.time);
+  if (!target) return '';
+  return `<div class="kickoff">
+    <div class="klabel">Kick-off vs ${esc(rec.club)} in</div>
+    <div class="countdown" id="countdown" data-target="${target.getTime()}">
+      <div class="cseg"><span class="cval" data-u="d">–</span><span class="clab">D</span></div>
+      <div class="cseg"><span class="cval" data-u="h">–</span><span class="clab">H</span></div>
+      <div class="cseg"><span class="cval" data-u="m">–</span><span class="clab">M</span></div>
+      <div class="cseg"><span class="cval" data-u="s">–</span><span class="clab">S</span></div>
+    </div>
+  </div>`;
+}
+
 function matchBar(d){
   if (!d.match) return '';
   const next = matchCard(d.match.next, 'next'), last = matchCard(d.match.last, 'last');
   if (!next && !last) return '';
-  return `<div class="matchbar">${next}${last}</div>`;
+  return `<div class="matchbar">${next}${last}${kickoffStrip(d.match.next)}</div>`;
 }
 
 function pageHome(d){
