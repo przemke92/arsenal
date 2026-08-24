@@ -108,7 +108,14 @@ h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:-.005em;text-
 .badge img{width:100%;height:100%;object-fit:contain}
 .badge.mono{background:var(--ink3);color:var(--muted);font-family:var(--mono);font-size:12px}
 .mfoot .badge.mono{font-size:9px}
-@media (max-width:620px){.matchbar{grid-template-columns:1fr}}
+@media (max-width:620px){
+  .matchbar{grid-template-columns:1fr}
+  /* card order flips on mobile: last game read first as recap, next game
+     (with the kick-off strip right under it) leads into what's coming */
+  .matchbar .mnext{order:2}
+  .matchbar .mlast{order:1}
+  .matchbar .kickoff{order:3}
+}
 /* On a desktop there is room to let the crests breathe: at 34px a raster logo
    is being squeezed into far fewer pixels than it ships with, which is what
    made them look coarse. */
@@ -1253,7 +1260,7 @@ function matchCard(rec, kind){
   const club = rec.club, comp = rec.competition || '';
   const venue = rec['h/a'] || rec.venue || '';
   const when = [rec.date, rec.time].filter(Boolean).join(' · ');
-  return `<div class="mcard">
+  return `<div class="mcard ${kind === 'next' ? 'mnext' : 'mlast'}">
     <div class="mlabel">${kind === 'next' ? 'Next game' : 'Last game'}</div>
     <div class="mtop">
       ${badgeFor(club, 'clubs')}
