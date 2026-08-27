@@ -654,7 +654,7 @@ async function loadCountries(){
     days.push({label: new Date(start).getDate(), n: rows.filter(v => v.t >= start && v.t < start + day).length});
   }
   const peak = Math.max(1, ...days.map(d => d.n));
-  html += `<h2>Last fortnight</h2><div class="spark">${days.map(d => `
+  html += `<h2>Last 2 weeks</h2><div class="spark">${days.map(d => `
     <div class="sparkcol" title="${d.n} on the ${d.label}">
       <div class="sparkbar" style="height:${(d.n / peak * 100).toFixed(0)}%"></div>
       <div class="sparklab">${d.label}</div>
