@@ -225,6 +225,11 @@ img.flag{width:20px;height:15px;object-fit:cover;border-radius:2px;vertical-alig
   box-shadow:0 0 0 1px rgba(237,230,218,.14)}
 .natcode{font-family:var(--mono);font-size:11px;color:var(--muted)}
 .tag{font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:6px}
+.loanTag{font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:var(--brass);
+  border:1px solid var(--brass);border-radius:3px;padding:1px 5px;margin-left:7px;
+  text-transform:uppercase;vertical-align:middle;white-space:nowrap}
+tr.loanRow{opacity:.55}
+tr.loanRow:hover{opacity:.9}
 thead th.sortable{cursor:pointer;user-select:none}
 thead th.sortable:hover{color:var(--parchment)}
 thead th.sorted{color:var(--brass)}
@@ -527,7 +532,8 @@ const at = (aoa, r, c) => (aoa[r] && aoa[r][c] !== undefined) ? aoa[r][c] : null
 const HDR = {
   name: ['name', 'player'],
   pos:  ['pos', 'position', 'poz', 'pozycja', 'role'],
-  nat:  ['nat', 'nationality', 'country', 'nationalities', 'nar', 'nation', 'kraj', 'narodowosc']
+  nat:  ['nat', 'nationality', 'country', 'nationalities', 'nar', 'nation', 'kraj', 'narodowosc'],
+  loan: ['loan', 'on loan', 'wypozyczenie', 'wypożyczenie', 'wypozyczony', 'wypożyczony']
 };
 const APPS_H = ['app', 'apps', 'a'];
 const GLS_H  = ['gls', 'goals', 'g'];
@@ -538,10 +544,11 @@ function findHeader(aoa){
     for (let c = 0; c < 8; c++){
       if (HDR.name.indexOf(T(at(aoa, r, c)).toLowerCase()) > -1){
         const cols = {no: 0, name: c};
-        for (let cc = 0; cc < 12; cc++){
+        for (let cc = 0; cc < 40; cc++){
           const lab = T(at(aoa, r, cc)).toLowerCase();
           if (HDR.pos.indexOf(lab) > -1) cols.pos = cc;
           if (HDR.nat.indexOf(lab) > -1) cols.nat = cc;
+          if (HDR.loan.indexOf(lab) > -1) cols.loan = cc;
         }
         return {row: r, cols};
       }
@@ -593,6 +600,7 @@ function parseSquadSheet(aoa){
     const p = {no: T(at(aoa, r, id.no)), name, comps: {}};
     if (id.pos !== undefined) p.pos = T(at(aoa, r, id.pos));
     if (id.nat !== undefined) p.nat = T(at(aoa, r, id.nat));
+    if (id.loan !== undefined) p.loan = T(at(aoa, r, id.loan));
     comps.forEach(k => p.comps[k.name] = {
       a: N(at(aoa, r, k.a)),
       g: k.g === null ? 0 : N(at(aoa, r, k.g)),
@@ -784,8 +792,8 @@ function parseWorkbook(wb){
   data.profiles = {};
   data.profilesNorm = {};
   const addProfile = p => {
-    if (!p.pos && !p.nat) return;
-    const rec = {pos: p.pos || '', nat: p.nat || ''};
+    if (!p.pos && !p.nat && !p.loan) return;
+    const rec = {pos: p.pos || '', nat: p.nat || '', loan: p.loan || ''};
     if (!data.profiles[p.name]) data.profiles[p.name] = rec;
     const key = normName(p.name);
     if (key && !data.profilesNorm[key]) data.profilesNorm[key] = rec;
@@ -1135,7 +1143,7 @@ function matrixBlock(d){
 function prof(d, p){
   const base = (d.profiles && d.profiles[p.name])
     || (d.profilesNorm && d.profilesNorm[normName(p.name)]) || {};
-  return {pos: p.pos || base.pos || '', nat: p.nat || base.nat || ''};
+  return {pos: p.pos || base.pos || '', nat: p.nat || base.nat || '', loan: p.loan || base.loan || ''};
 }
 
 function squadTable(d, set, key, dflt){
@@ -1154,6 +1162,7 @@ function squadTable(d, set, key, dflt){
     getters['s_' + c] = p => p.comps[c].s || 0;
   });
   const rows = sortTable(set.players, s.col, s.dir, getters);
+  rows.sort((a, b) => (prof(d, a).loan ? 1 : 0) - (prof(d, b).loan ? 1 : 0));
   const th = (col, label, cls) =>
     `<th class="${cls || ''} sortable ${s.col === col ? 'sorted' : ''}" data-sort="${col}" data-key="${key}">${label}${s.col === col ? (s.dir < 0 ? ' ↓' : ' ↑') : ''}</th>`;
   const span = ast ? 3 : 2;
@@ -1175,11 +1184,11 @@ function squadTable(d, set, key, dflt){
     </thead>
     <tbody>${rows.map(p => {
       const pr = prof(d, p);
-      return `<tr class="clickable" data-player="${esc(p.name)}">
+      return `<tr class="clickable ${pr.loan ? 'loanRow' : ''}" data-player="${esc(p.name)}">
       <td class="num shirt">${esc(p.no)}</td>
       <td class="c pos" title="${esc(pr.pos)}">${esc(posShort(pr.pos)) || '·'}</td>
       <td class="c nat">${pr.nat ? flagImg(pr.nat) : '·'}</td>
-      <td class="l name">${nameHTML(p.name)}</td>
+      <td class="l name">${nameHTML(p.name)}${pr.loan ? '<span class="loanTag">Loan</span>' : ''}</td>
       <td class="num"><b>${p.total.a}</b></td>
       <td class="num goal"><b>${p.total.g || '·'}</b></td>
       ${ast ? `<td class="num assist"><b>${p.total.s || '·'}</b></td>` : ''}
@@ -1351,7 +1360,10 @@ function pageComp(d, id){
   if (!c) return head('Competition', 'Nothing to show', 'No data for this competition yet.');
   const played = c.fixtures.map((f, i) => c.players.some(p => p.cells[i].a > 0));
   const anyPlayed = played.filter(Boolean).length;
-  const players = c.players.slice().sort((a, b) => b.a - a.a || b.g - a.g);
+  const players = c.players.slice().sort((a, b) => {
+    const la = prof(d, a).loan ? 1 : 0, lb = prof(d, b).loan ? 1 : 0;
+    return la - lb || b.a - a.a || b.g - a.g;
+  });
   const goalsTotal = c.players.reduce((s, p) => s + p.g, 0);
   const assistsTotal = c.players.reduce((s, p) => s + (p.s || 0), 0);
 
@@ -1363,14 +1375,14 @@ function pageComp(d, id){
       <div class="opp" style="${played[i] ? '' : 'color:var(--muted)'}">${esc(f.opponent || '—')}</div>
       <div class="st">${esc(String(f.stage).slice(0, 3))}</div></div></th>`).join('')}</tr>`;
 
-  const body = players.map(p => `<tr>
+  const body = players.map(p => { const pr = prof(d, p); return `<tr class="${pr.loan ? 'loanRow' : ''}">
     <td class="pname">${nameHTML(p.name)}${(() => {
-      const ps = posShort(prof(d, p).pos); return ps ? `<span class="tag">${esc(ps)}</span>` : ''; })()}</td>
+      const ps = posShort(pr.pos); return ps ? `<span class="tag">${esc(ps)}</span>` : ''; })()}${pr.loan ? '<span class="loanTag">Loan</span>' : ''}</td>
     <td class="tot t1">${p.a || '·'}</td>
     <td class="tot t2 ${p.g ? 'goal' : ''}">${p.g || '·'}</td>
     ${p.cells.map(x => `<td class="cell">${
       x.g > 0 ? `<span class="pip scored">${x.g}</span>` :
-      x.a > 0 ? `<span class="pip app">1</span>` : ''}</td>`).join('')}</tr>`).join('');
+      x.a > 0 ? `<span class="pip app">1</span>` : ''}</td>`).join('')}</tr>`; }).join('');
 
   return head('Competition', c.label, '')
     + `<div class="kpis" style="margin-bottom:18px">
