@@ -1384,12 +1384,12 @@ function matchBar(d){
    ============================================================ */
 const PITCH_POS = {
   GK:  {y: 94, xMin: 50, xMax: 50},
-  LB:  {y: 76, xMin: 4,  xMax: 20}, CB:  {y: 76, xMin: 26, xMax: 74}, RB:  {y: 76, xMin: 80, xMax: 96},
-  CDM: {y: 62, xMin: 26, xMax: 74},
-  LM:  {y: 48, xMin: 4,  xMax: 20}, CM:  {y: 48, xMin: 26, xMax: 74}, RM:  {y: 48, xMin: 80, xMax: 96},
-  CAM: {y: 34, xMin: 20, xMax: 80},
+  LB:  {y: 76, xMin: 4,  xMax: 20}, CB:  {y: 76, xMin: 38, xMax: 62}, RB:  {y: 76, xMin: 80, xMax: 96},
+  CDM: {y: 62, xMin: 38, xMax: 62},
+  LM:  {y: 48, xMin: 4,  xMax: 20}, CM:  {y: 48, xMin: 32, xMax: 68}, RM:  {y: 48, xMin: 80, xMax: 96},
+  CAM: {y: 34, xMin: 30, xMax: 70},
   LW:  {y: 18, xMin: 4,  xMax: 20}, RW:  {y: 18, xMin: 80, xMax: 96},
-  ST:  {y: 8,  xMin: 20, xMax: 80}, CF:  {y: 8,  xMin: 20, xMax: 80}
+  ST:  {y: 8,  xMin: 32, xMax: 68}, CF:  {y: 8,  xMin: 32, xMax: 68}
 };
 const PITCH_VBW = 400, PITCH_VBH = 520;
 const PITCH_TOP_Y = 34, PITCH_BOTTOM_Y = 486;
@@ -1410,7 +1410,7 @@ function surnameOf(n){
   while (i < parts.length && parts[i] === parts[i].toUpperCase() && /[A-ZÀ-Ý]/.test(parts[i])) i++;
   return (i === 0 ? parts : parts.slice(0, i)).join(' ');
 }
-const pitchLabel = s => s.length > 11 ? s.slice(0, 10) + '…' : s;
+const pitchLabel = s => s.length > 17 ? s.slice(0, 16) + '…' : s;
 /* "G", "A", or both ("G,A" / "G A" / "GA") in the Goal/Assist column —
    token-matched so a full word like "Goal" never false-triggers the A. */
 function parseGA(val){
