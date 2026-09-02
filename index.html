@@ -174,7 +174,12 @@ a.mcardLink:hover{background:var(--ink3)}
 .kpisCompact .kpi .s{font-size:11px;line-height:1.25}
 /* an odd number of tiles under a 2-up mobile grid leaves one lonely tile with
    a blank cell beside it; this centres the orphan across the row instead */
-.kpis > .kpi:last-child:nth-child(odd){grid-column:1/-1;max-width:260px;margin:0 auto;width:100%}
+/* Only for the wider default grid: a genuinely odd tile count that had to
+   wrap gets centered instead of left orphaned. kpisCompact's tiles are
+   narrow enough to always fit one row on their own, so this never even
+   needs to fire there — forcing it anyway is what was leaving that big
+   empty strip next to the last tile. */
+.kpis:not(.kpisCompact) > .kpi:last-child:nth-child(odd){grid-column:1/-1;max-width:260px;margin:0 auto;width:100%}
 
 table.standings{width:100%;font-size:13px;border-collapse:collapse}
 table.standings th{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
