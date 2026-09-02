@@ -129,6 +129,23 @@ h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:-.005em;text-
   .mclub{font-size:19px}
   .mscore{font-size:26px}
 }
+.pitchCard{background:var(--ink2);padding:14px 14px 16px}
+.pitchSvg{width:100%;height:auto;display:block;max-width:420px;margin:0 auto}
+.pitchSvg .pmark{cursor:pointer}
+.pitchSvg .prat{font-family:var(--mono);font-size:12px;font-weight:700}
+.pitchSvg .pnamet{font-family:var(--mono);font-size:9px;fill:var(--parchment);letter-spacing:.02em}
+.pitchSvg .subMark{font-size:13px;font-weight:700}
+.pitchSvg .subMark.down{fill:var(--loss)}
+.subsList{margin-top:14px;padding-top:12px;border-top:1px solid var(--ink3)}
+.subsHead{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--brass);
+  text-transform:uppercase;margin-bottom:8px}
+.subRow{display:flex;align-items:center;gap:9px;padding:6px 2px}
+.subRow.clickable{cursor:pointer}
+.subRow.clickable:hover{background:var(--ink3)}
+.subMark.up{color:var(--win);font-weight:700;font-size:13px;width:14px;text-align:center}
+.subName{font-family:var(--mono);font-size:12px;color:var(--parchment);flex:1}
+.subRating{font-family:var(--mono);font-size:12px;font-weight:700}
+
 .kickoff{grid-column:1/-1;background:var(--ink2);padding:15px 16px 16px;text-align:center}
 .klabel{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--brass);
   text-transform:uppercase;margin-bottom:10px}
@@ -684,6 +701,37 @@ function parseMatchInfo(a){
   return out;
 }
 
+/* Post-match ratings sheet: Pos / Name / Rating / Status, in any column
+   order. Name here is just whatever short form the person typed (matched
+   against the roster by surname when the pitch graphic is built), so this
+   parser stays deliberately loose about column order and doesn't try to
+   resolve identity itself. */
+function parseRatings(aoa){
+  if (!aoa) return null;
+  let hRow = -1, cols = {};
+  for (let r = 0; r < 5; r++){
+    const rowVals = (aoa[r] || []).map(v => T(v).toLowerCase());
+    const find = labels => rowVals.findIndex(v => labels.indexOf(v) > -1);
+    const cName = find(HDR.name), cRating = find(['rating', 'ocena']);
+    if (cName > -1 && cRating > -1){
+      hRow = r;
+      cols = {name: cName, rating: cRating, pos: find(HDR.pos), status: find(['status', 'stat'])};
+      break;
+    }
+  }
+  if (hRow < 0) return null;
+  const rows = [];
+  for (let r = hRow + 1; r < aoa.length; r++){
+    const name = T(at(aoa, r, cols.name)); if (!name) continue;
+    rows.push({
+      name, pos: cols.pos > -1 ? T(at(aoa, r, cols.pos)) : '',
+      rating: N(at(aoa, r, cols.rating)),
+      status: cols.status > -1 ? T(at(aoa, r, cols.status)) : ''
+    });
+  }
+  return rows.length ? rows : null;
+}
+
 function fmtCell(v){
   if (v instanceof Date && !isNaN(v)){
     const hh = v.getHours(), mm = v.getMinutes();
@@ -786,6 +834,7 @@ function parseWorkbook(wb){
 
   data.exPlayers = parseSquadSheet(aoa('Ex-Players'));
   data.match = parseMatchInfo(aoa('Match') || aoa('Matches'));
+  data.ratings = parseRatings(aoa('Ratings'));
   /* Profiles come from the squad sheet first, then Ex-Players fills in everyone
      who has since left, so season pages know them too. Names are also indexed in
      a normalised form to survive punctuation and spacing differences. */
@@ -1309,11 +1358,152 @@ function matchBar(d){
   return `<div class="matchbar">${next}${last}${kickoffStrip(d.match.next)}</div>`;
 }
 
+/* ============================================================
+   PITCH — post-match ratings, drawn as a tilted vertical formation
+   (goalkeeper at the bottom, attack at the top). The tilt is not a CSS
+   3D transform: the pitch is drawn as a trapezoid in plain SVG (the far
+   / attacking end narrower than the near / GK end), which gives the same
+   broadcast-camera look without any perspective/rotateX rendering risk
+   on mobile, and keeps every label perfectly flat and readable.
+   ============================================================ */
+const PITCH_POS = {
+  GK:  {y: 92, xMin: 50, xMax: 50},
+  LB:  {y: 76, xMin: 10, xMax: 26}, CB:  {y: 76, xMin: 34, xMax: 66}, RB:  {y: 76, xMin: 74, xMax: 90},
+  CDM: {y: 64, xMin: 34, xMax: 66},
+  LM:  {y: 52, xMin: 10, xMax: 26}, CM:  {y: 52, xMin: 34, xMax: 66}, RM:  {y: 52, xMin: 74, xMax: 90},
+  CAM: {y: 40, xMin: 30, xMax: 70},
+  LW:  {y: 24, xMin: 10, xMax: 26}, RW:  {y: 24, xMin: 74, xMax: 90},
+  ST:  {y: 12, xMin: 30, xMax: 70}, CF:  {y: 12, xMin: 30, xMax: 70}
+};
+const PITCH_VBW = 320, PITCH_VBH = 440, PITCH_CX = 160;
+const PITCH_TOP_Y = 34, PITCH_BOTTOM_Y = 406;
+const PITCH_W_TOP = 180, PITCH_W_BOTTOM = 270;
+
+/* Maps a logical position (xPct 0-100 left-right, yPct 0 attack / 100
+   goalkeeper) onto the tapered trapezoid, so a marker's on-pitch spot
+   always lines up with the perspective drawn beneath it. */
+function pitchXY(xPct, yPct){
+  const y = PITCH_TOP_Y + (yPct / 100) * (PITCH_BOTTOM_Y - PITCH_TOP_Y);
+  const halfW = (PITCH_W_TOP + (yPct / 100) * (PITCH_W_BOTTOM - PITCH_W_TOP)) / 2;
+  const x = PITCH_CX + ((xPct - 50) / 50) * halfW;
+  return {x, y};
+}
+function spreadX(n, xMin, xMax){
+  if (n <= 1) return [(xMin + xMax) / 2];
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(xMin + (i * (xMax - xMin)) / (n - 1));
+  return out;
+}
+function ratingColor(r){ return r >= 7 ? 'var(--win)' : r >= 6 ? 'var(--draw)' : 'var(--loss)'; }
+function surnameOf(n){
+  const parts = String(n).split(' ');
+  let i = 0;
+  while (i < parts.length && parts[i] === parts[i].toUpperCase() && /[A-ZÀ-Ý]/.test(parts[i])) i++;
+  return (i === 0 ? parts : parts.slice(0, i)).join(' ');
+}
+/* Ratings only carry a short name (whatever was pasted from WhoScored),
+   so it's matched back to the roster by surname, accent- and punctuation-
+   insensitive. Unmatched names (a typo, a very new loanee) still render,
+   just without a photo/profile link behind them. */
+function resolveRatingPlayer(d, rawName){
+  if (!resolveRatingPlayer._idx || resolveRatingPlayer._for !== d){
+    const idx = {};
+    const add = list => (list || []).forEach(p => {
+      const k = normName(surnameOf(p.name));
+      if (k && !idx[k]) idx[k] = p.name;
+    });
+    add(d.career && d.career.players);
+    add(d.exPlayers && d.exPlayers.players);
+    resolveRatingPlayer._idx = idx; resolveRatingPlayer._for = d;
+  }
+  const full = resolveRatingPlayer._idx[normName(rawName)];
+  return {full: full || null, label: properName(full ? surnameOf(full) : rawName)};
+}
+
+function pitchMarkings(){
+  const P = pitchXY;
+  const corner = [P(0, 0), P(100, 0), P(100, 100), P(0, 100)];
+  const pt = p => `${p.x},${p.y}`;
+  const bands = [0, 16.6, 33.3, 50, 66.6, 83.3, 100];
+  const stripes = bands.slice(0, -1).map((y0, i) => {
+    const y1 = bands[i + 1];
+    const pts = [P(0, y0), P(100, y0), P(100, y1), P(0, y1)].map(pt).join(' ');
+    return `<polygon points="${pts}" fill="${i % 2 ? 'rgba(255,255,255,.02)' : 'rgba(255,255,255,0)'}"/>`;
+  }).join('');
+  const box = (y0, y1) => {
+    const pts = [P(22, y0), P(78, y0), P(78, y1), P(22, y1)].map(pt).join(' ');
+    return `<polygon points="${pts}" fill="none" stroke="rgba(237,230,218,.35)" stroke-width="1.5"/>`;
+  };
+  const half = `<line x1="${P(0,50).x}" y1="${P(0,50).y}" x2="${P(100,50).x}" y2="${P(100,50).y}" stroke="rgba(237,230,218,.35)" stroke-width="1.5"/>`;
+  const cc = P(50, 50), ccR = (PITCH_W_TOP + PITCH_W_BOTTOM) / 4 * 0.32;
+  const circle = `<ellipse cx="${cc.x}" cy="${cc.y}" rx="${ccR}" ry="${ccR * 0.55}" fill="none" stroke="rgba(237,230,218,.35)" stroke-width="1.5"/>`;
+  return `<polygon points="${corner.map(pt).join(' ')}" fill="#173318" stroke="rgba(237,230,218,.4)" stroke-width="1.5"/>
+    ${stripes}${half}${circle}${box(0, 15)}${box(85, 100)}`;
+}
+
+function pitchBlock(d){
+  if (!d.ratings || !d.ratings.length) return '';
+  const starters = d.ratings.filter(r => /^90$|subbed/i.test(r.status));
+  const subs = d.ratings.filter(r => /^sub$/i.test(r.status));
+  if (!starters.length) return '';
+
+  const groups = {};
+  starters.forEach(r => {
+    const code = String(r.pos || '').toUpperCase().trim();
+    const key = code === 'CF' ? 'ST' : code;
+    (groups[key] = groups[key] || []).push(r);
+  });
+  const placed = [];
+  Object.keys(groups).forEach(key => {
+    const band = PITCH_POS[key] || PITCH_POS.CM;
+    const xs = spreadX(groups[key].length, band.xMin, band.xMax);
+    groups[key].forEach((r, i) => placed.push({row: r, xPct: xs[i], yPct: band.y}));
+  });
+
+  const marks = placed.map(({row, xPct, yPct}) => {
+    const {full, label} = resolveRatingPlayer(d, row.name);
+    const {x, y} = pitchXY(xPct, yPct);
+    const color = ratingColor(row.rating);
+    const subbed = /subbed/i.test(row.status);
+    return `<g class="pmark"${full ? ` data-player="${esc(full)}"` : ''}>
+      <circle cx="${x}" cy="${y}" r="15" fill="var(--ink2)" stroke="${color}" stroke-width="2.5"/>
+      <text x="${x}" y="${y + 4}" text-anchor="middle" class="prat" fill="${color}">${row.rating ? row.rating.toFixed(1) : '·'}</text>
+      <text x="${x}" y="${y + 27}" text-anchor="middle" class="pnamet">${esc(label)}</text>
+      ${subbed ? `<text x="${x + 15}" y="${y - 10}" text-anchor="middle" class="subMark down">↓</text>` : ''}
+    </g>`;
+  }).join('');
+
+  const subsHTML = subs.length ? `<div class="subsList">
+    <div class="subsHead">Substitutes</div>
+    ${subs.map(row => {
+      const {full, label} = resolveRatingPlayer(d, row.name);
+      return `<div class="subRow${full ? ' clickable' : ''}"${full ? ` data-player="${esc(full)}"` : ''}>
+        <span class="subMark up">↑</span>
+        <span class="subName">${esc(label)}</span>
+        <span class="subRating" style="color:${ratingColor(row.rating)}">${row.rating ? row.rating.toFixed(1) : '·'}</span>
+      </div>`;
+    }).join('')}
+  </div>` : '';
+
+  const last = d.match && d.match.last;
+  const sub = last && last.club ? `vs ${esc(last.club)}${last.score ? ' · ' + esc(last.score) : ''}` : 'most recent match';
+
+  return `<div class="section-h"><h2>Player ratings</h2><span class="hint">${sub}</span></div>
+    <div class="pitchCard">
+      <svg viewBox="0 0 ${PITCH_VBW} ${PITCH_VBH}" class="pitchSvg">
+        ${pitchMarkings()}
+        ${marks}
+      </svg>
+      ${subsHTML}
+    </div>`;
+}
+
 function pageHome(d){
   const key = d.currentSeason;
   return head('The Arsenal Dashboard', 'Home',
     'Where the season stands right now, and the names at the top of the ledger.')
     + matchBar(d)
+    + pitchBlock(d)
     + standingsBlock(d)
     + `<div class="section-h"><h2>Season ${esc(key)}</h2>
         <span class="hint">this campaign, all competitions</span></div>`
@@ -1790,6 +1980,9 @@ function wire(){
   });
   document.querySelectorAll('tr[data-player]').forEach(tr => tr.onclick = () => {
     state.player = tr.dataset.player; render();
+  });
+  document.querySelectorAll('.pmark[data-player], .subRow[data-player]').forEach(el => el.onclick = () => {
+    state.player = el.dataset.player; render();
   });
   const scrim = document.getElementById('scrim');
   if (scrim) scrim.onclick = e => { if (e.target === scrim) { state.player = null; render(); } };
