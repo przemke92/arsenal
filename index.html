@@ -103,9 +103,10 @@ h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:-.005em;text-
 .mcomp{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mwhen{color:var(--parchment);white-space:nowrap}
 .badge{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
-  width:34px;height:34px;border-radius:3px}
+  width:34px;height:34px;border-radius:3px;overflow:hidden}
 .mfoot .badge{width:18px;height:18px}
 .badge img{width:100%;height:100%;object-fit:contain}
+.badge-pl img{transform:scale(1.3)}
 .badge.mono{background:var(--ink3);color:var(--muted);font-family:var(--mono);font-size:12px}
 .mfoot .badge.mono{font-size:9px}
 @media (max-width:620px){
@@ -1308,7 +1309,13 @@ function badgeFor(name, kind){
   const words = String(name).replace(/[^A-Za-z ]/g, '').split(' ').filter(Boolean);
   const initials = (words.length > 1 ? words[0][0] + words[1][0] : String(name).slice(0, 2)).toUpperCase();
   if (!url) return `<span class="badge mono">${esc(initials)}</span>`;
-  return `<span class="badge"><img src="${esc(url)}" alt="${esc(name)}" loading="lazy"
+  /* The Premier League's own badge SVGs carry noticeably more built-in
+     transparent margin than crests sourced elsewhere (Wikipedia etc.), so
+     side by side they read as smaller even in an identically-sized box.
+     Nudging just this source back up keeps every crest reading the same
+     visual size without touching the files themselves. */
+  const tight = /resources\.premierleague\.com/i.test(url) ? ' badge-pl' : '';
+  return `<span class="badge${tight}"><img src="${esc(url)}" alt="${esc(name)}" loading="lazy"
     onerror="this.parentNode.className='badge mono';this.parentNode.textContent='${esc(initials)}'"></span>`;
 }
 
