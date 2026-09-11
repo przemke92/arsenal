@@ -98,6 +98,12 @@ h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:-.005em;text-
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mvenue{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mscore{font-family:var(--mono);font-size:22px;font-weight:600;color:var(--parchment)}
+.mscoreWrap{display:flex;align-items:center;gap:8px}
+.mresult{font-family:var(--mono);font-size:11px;font-weight:700;width:20px;height:20px;
+  border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.mresult.win{background:var(--win);color:#0C1F0F}
+.mresult.draw{background:var(--draw);color:#2A1F04}
+.mresult.loss{background:var(--loss);color:#2A0A08}
 .mfoot{display:flex;align-items:center;gap:8px;margin-top:11px;padding-top:10px;
   border-top:1px solid var(--ink3);font-family:var(--mono);font-size:11px;color:var(--muted)}
 .mcomp{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -129,6 +135,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:-.005em;text-
   .mfoot .badge.mono{font-size:11px}
   .mclub{font-size:19px}
   .mscore{font-size:26px}
+  .mresult{width:23px;height:23px;font-size:12px}
 }
 a.mcardLink{display:block;color:inherit;text-decoration:none}
 a.mcardLink:hover{background:var(--ink3)}
@@ -1345,6 +1352,18 @@ function parseMatchDate(dateStr, timeStr){
   return isNaN(dt) ? null : dt;
 }
 
+/* "2-1" -> W, "1-1" -> D, "0-2" -> L. Score is always written as
+   Arsenal's goals first regardless of home/away, matching how the sheet
+   already records it. */
+function matchResult(score){
+  const m = String(score || '').match(/(\d+)\s*[-–:]\s*(\d+)/);
+  if (!m) return null;
+  const us = +m[1], them = +m[2];
+  if (us > them) return {letter: 'W', cls: 'win'};
+  if (us < them) return {letter: 'L', cls: 'loss'};
+  return {letter: 'D', cls: 'draw'};
+}
+
 function matchCard(rec, kind, linked){
   if (!rec || !rec.club) return '';
   const club = rec.club, comp = rec.competition || '';
@@ -1353,6 +1372,7 @@ function matchCard(rec, kind, linked){
   const cls = `mcard ${kind === 'next' ? 'mnext' : 'mlast'}${linked ? ' mcardLink' : ''}`;
   const tag = linked ? 'a' : 'div';
   const open = linked ? `<a class="${cls}" href="#/latest-match">` : `<div class="${cls}">`;
+  const result = rec.score ? matchResult(rec.score) : null;
   return `${open}
     <div class="mlabel">${kind === 'next' ? 'Next game' : 'Last game'}</div>
     <div class="mtop">
@@ -1361,7 +1381,10 @@ function matchCard(rec, kind, linked){
         <div class="mclub">${esc(club)}</div>
         <div class="mvenue">${esc(venue)}</div>
       </div>
-      ${rec.score ? `<div class="mscore">${esc(rec.score)}</div>` : ''}
+      ${rec.score ? `<div class="mscoreWrap">
+        <div class="mscore">${esc(rec.score)}</div>
+        ${result ? `<span class="mresult ${result.cls}">${result.letter}</span>` : ''}
+      </div>` : ''}
     </div>
     <div class="mfoot">
       ${comp ? badgeFor(comp, 'competitions') : ''}
