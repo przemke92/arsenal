@@ -8,7 +8,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
   --ink:#141010;--ink2:#1D1717;--ink3:#272020;--line:#3A2F2E;
@@ -26,21 +25,6 @@ h2{font-family:var(--display);font-weight:400;font-size:15px;text-transform:uppe
 .lede{color:var(--muted);margin:10px 0 26px;max-width:62ch}
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 a{color:var(--brass)}
-.drop{
-  border:1px dashed var(--line);padding:44px 20px;text-align:center;color:var(--muted);
-  border-radius:3px;transition:border-color .15s,color .15s;
-}
-.drop.over{border-color:var(--brass);color:var(--parchment);background:var(--ink2)}
-.drop strong{display:block;font-family:var(--mono);font-size:13px;color:var(--parchment);margin-bottom:6px}
-label.pick{color:var(--brass);cursor:pointer;text-decoration:underline}
-.btn{
-  font-family:var(--mono);font-size:12px;padding:9px 16px;border:1px solid var(--brass);
-  background:transparent;color:var(--brass);cursor:pointer;border-radius:2px;text-decoration:none;display:inline-block;
-}
-.btn:hover{background:var(--brass);color:var(--ink)}
-.btn.ghost{border-color:var(--line);color:var(--muted)}
-.btn.ghost:hover{background:var(--ink2);color:var(--parchment)}
-.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
 .kpi{background:var(--ink2);padding:13px 15px}
 .kpi .v{font-family:var(--mono);font-size:22px;font-weight:600}
@@ -50,22 +34,6 @@ th{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:upp
   font-weight:500;text-align:left;padding:8px 10px;background:var(--ink2);border-bottom:1px solid var(--line)}
 td{padding:6px 10px;border-bottom:1px solid var(--ink3)}
 td.r,th.r{text-align:right}
-.check{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--ink3);font-size:14px}
-.check .mark{font-family:var(--mono);font-size:12px;flex:0 0 auto;width:18px}
-.check.ok .mark{color:var(--ok)}
-.check.warn .mark{color:var(--brass)}
-.check.bad .mark{color:var(--red)}
-.check .txt small{display:block;color:var(--muted);font-family:var(--mono);font-size:11px;margin-top:2px}
-.hidden{display:none}
-.tokenrow{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:14px}
-#tok{background:var(--ink2);color:var(--parchment);border:1px solid var(--line);padding:9px 11px;
-  font-family:var(--mono);font-size:12px;border-radius:2px;min-width:280px}
-.remember{font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;gap:6px;align-items:center}
-.commitmsg{font-family:var(--mono);font-size:12px;margin-top:12px;min-height:18px}
-.commitmsg.working{color:var(--brass)}
-.commitmsg.good{color:var(--ok)}
-.commitmsg.bad{color:var(--red)}
-.btn:disabled{opacity:.5;cursor:default}
 .spark{display:flex;gap:4px;align-items:flex-end;height:110px;margin-top:6px}
 .sparkcol{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%}
 .sparkbar{background:var(--brass);min-height:2px;border-radius:1px}
@@ -82,19 +50,10 @@ img.flag{width:20px;height:15px;object-fit:cover;border-radius:2px;vertical-alig
 <body>
 <div class="wrap">
   <div class="eyebrow">Admin</div>
-  <h1>Check the workbook</h1>
-  <p class="lede">Drop a copy of arsenal_stats.xlsx here to see what the dashboard will make of it,
-  before you commit anything. Nothing is uploaded anywhere: the file is read in this browser and forgotten
-  when you close the tab.</p>
-
-  <div class="drop" id="drop">
-    <strong>Drop arsenal_stats.xlsx here</strong>
-    or <label class="pick">choose a file<input type="file" id="pick" accept=".xlsx,.xlsm" hidden></label>
-  </div>
+  <h1>Traffic</h1>
+  <p class="lede">How the dashboard is doing: visits, where they come from, and which pages get read most.</p>
 
   <div id="traffic"></div>
-
-  <div id="out" class="hidden"></div>
 
   <div class="foot">
     This page is not linked from the dashboard. Keep the address to yourself.<br>
@@ -103,31 +62,9 @@ img.flag{width:20px;height:15px;object-fit:cover;border-radius:2px;vertical-alig
 </div>
 
 <script>
-/* Parser identyczny jak w index.html. */
+/* Only what the Traffic section below needs: nationality lookups for the
+   country table (natEntry/natName/flagImg) and small formatting helpers. */
 const T = v => v === null || v === undefined ? '' : (typeof v === 'string' ? v.trim() : String(v));
-const N = v => {
-  if (v === null || v === undefined || v === '' || v === ' ') return 0;
-  const n = typeof v === 'number' ? v : parseFloat(v);
-  return isNaN(n) ? 0 : n;
-};
-const at = (aoa, r, c) => (aoa[r] && aoa[r][c] !== undefined) ? aoa[r][c] : null;
-const POS_WORD = {goalkeeper:'GK', keeper:'GK', defender:'DF', defence:'DF', midfielder:'MF',
-  midfield:'MF', forward:'FW', attacker:'FW', striker:'ST', winger:'W', back:'B', centre:'C', center:'C'};
-const posShort = p => {
-  const v = T(p); if (!v) return '';
-  if (v.length <= 3) return v.toUpperCase();
-  const words = v.split(/[\s\-\/]+/).filter(Boolean);
-  if (words.length === 1) return POS_WORD[words[0].toLowerCase()] || v.slice(0, 3).toUpperCase();
-  return words.map(w => POS_WORD[w.toLowerCase()] || w[0]).join('').slice(0, 3).toUpperCase();
-};
-const posGroup = p => {
-  const v = T(p).toLowerCase(); if (!v) return '';
-  if (/goal|keeper|^gk/.test(v)) return 'GK';
-  if (/def|back|^cb|^rb|^lb|^df/.test(v)) return 'DF';
-  if (/mid|^cm|^dm|^am|^mf/.test(v)) return 'MF';
-  if (/for|attack|strik|wing|^st|^fw|^rw|^lw|^cf/.test(v)) return 'FW';
-  return '';
-};
 const NAT_RAW = 'ENG::England|SCO::Scotland|WAL::Wales|NIR::Northern Ireland|IRL:IE:Republic of Ireland|FRA:FR:France|ESP:ES:Spain|POR:PT:Portugal|NED:NL:Netherlands|GER:DE:Germany|ITA:IT:Italy|BEL:BE:Belgium|SUI:CH:Switzerland|AUT:AT:Austria|DEN:DK:Denmark|NOR:NO:Norway|SWE:SE:Sweden|FIN:FI:Finland|ISL:IS:Iceland|POL:PL:Poland|CZE:CZ:Czechia|SVK:SK:Slovakia|HUN:HU:Hungary|ROU:RO:Romania|BUL:BG:Bulgaria|GRE:GR:Greece|TUR:TR:Turkey|CRO:HR:Croatia|SRB:RS:Serbia|SLO:SI:Slovenia|BIH:BA:Bosnia and Herzegovina|MKD:MK:North Macedonia|MNE:ME:Montenegro|ALB:AL:Albania|KOS:XK:Kosovo|UKR:UA:Ukraine|RUS:RU:Russia|BLR:BY:Belarus|LTU:LT:Lithuania|LVA:LV:Latvia|EST:EE:Estonia|GEO:GE:Georgia|ARM:AM:Armenia|AZE:AZ:Azerbaijan|CYP:CY:Cyprus|LUX:LU:Luxembourg|MLT:MT:Malta|ISR:IL:Israel|BRA:BR:Brazil|ARG:AR:Argentina|URU:UY:Uruguay|CHI:CL:Chile|COL:CO:Colombia|ECU:EC:Ecuador|PER:PE:Peru|PAR:PY:Paraguay|BOL:BO:Bolivia|VEN:VE:Venezuela|USA:US:United States|CAN:CA:Canada|MEX:MX:Mexico|CRC:CR:Costa Rica|JAM:JM:Jamaica|TRI:TT:Trinidad and Tobago|HON:HN:Honduras|PAN:PA:Panama|GUA:GT:Guatemala|HAI:HT:Haiti|CUB:CU:Cuba|NGA:NG:Nigeria|GHA:GH:Ghana|CIV:CI:Ivory Coast|SEN:SN:Senegal|CMR:CM:Cameroon|EGY:EG:Egypt|MAR:MA:Morocco|ALG:DZ:Algeria|TUN:TN:Tunisia|MLI:ML:Mali|BFA:BF:Burkina Faso|GUI:GN:Guinea|COD:CD:DR Congo|CGO:CG:Congo|ANG:AO:Angola|RSA:ZA:South Africa|ZIM:ZW:Zimbabwe|ZAM:ZM:Zambia|KEN:KE:Kenya|UGA:UG:Uganda|GAB:GA:Gabon|TOG:TG:Togo|BEN:BJ:Benin|CPV:CV:Cape Verde|GAM:GM:Gambia|SLE:SL:Sierra Leone|LBR:LR:Liberia|MTN:MR:Mauritania|NIG:NE:Niger|EQG:GQ:Equatorial Guinea|MOZ:MZ:Mozambique|MAD:MG:Madagascar|JPN:JP:Japan|KOR:KR:South Korea|CHN:CN:China|AUS:AU:Australia|NZL:NZ:New Zealand|IRN:IR:Iran|IRQ:IQ:Iraq|KSA:SA:Saudi Arabia|UAE:AE:United Arab Emirates|QAT:QA:Qatar|JOR:JO:Jordan|UZB:UZ:Uzbekistan|IND:IN:India|THA:TH:Thailand|VIE:VN:Vietnam|PHI:PH:Philippines|IDN:ID:Indonesia';
 const NAT = {};
 const ISO_EXTRA = 'GB:United Kingdom|IE:Ireland|CN:China|HK:Hong Kong|TW:Taiwan|SG:Singapore|'
@@ -171,411 +108,11 @@ const natShort = nat => {
   return flagOf(v) || (e => e && e.code ? e.code : v.slice(0, 3).toUpperCase())(natEntry(v));
 };
 
-const normName = n => String(n).toUpperCase().normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/g, '');
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-const HDR = {
-  name: ['name', 'player'],
-  pos:  ['pos', 'position', 'poz', 'pozycja', 'role'],
-  nat:  ['nat', 'nationality', 'country', 'nationalities', 'nar', 'nation', 'kraj', 'narodowosc']
-};
-const APPS_H = ['app', 'apps', 'a'];
-const GLS_H  = ['gls', 'goals', 'g'];
-const AST_H  = ['ast', 'assists', 'as'];
-const isH = (v, list) => list.indexOf(T(v).toLowerCase()) > -1;
-function findHeader(aoa){
-  for (let r = 0; r < 8; r++){
-    for (let c = 0; c < 8; c++){
-      if (HDR.name.indexOf(T(at(aoa, r, c)).toLowerCase()) > -1){
-        const cols = {no: 0, name: c};
-        for (let cc = 0; cc < 12; cc++){
-          const lab = T(at(aoa, r, cc)).toLowerCase();
-          if (HDR.pos.indexOf(lab) > -1) cols.pos = cc;
-          if (HDR.nat.indexOf(lab) > -1) cols.nat = cc;
-        }
-        return {row: r, cols};
-      }
-    }
-  }
-  return null;
-}
-function headerRow(aoa){ const h = findHeader(aoa); return h ? h.row : -1; }
-/* If the header text is not one we recognise, work out which column holds the
-   position and which the nationality by looking at what is actually in them. */
-function sniffIdentity(aoa, h, id){
-  const rows = [];
-  for (let r = h + 1; r < Math.min(aoa.length, h + 60); r++) rows.push(r);
-  const limit = Math.min(id.name + 5, 10);
-  for (let c = 0; c <= limit; c++){
-    if (c === id.name || c === id.pos || c === id.nat) continue;
-    const vals = rows.map(r => T(at(aoa, r, c))).filter(Boolean);
-    if (vals.length < 3) continue;
-    const natHits = vals.filter(v => natEntry(v)).length;
-    const posHits = vals.filter(v => posGroup(v)).length;
-    if (id.nat === undefined && natHits / vals.length >= 0.6 && natHits >= posHits){ id.nat = c; continue; }
-    if (id.pos === undefined && posHits / vals.length >= 0.6){ id.pos = c; }
-  }
-  return id;
-}
 
-function parseSquadSheet(aoa){
-  const hd = findHeader(aoa); if (!hd) return null;
-  const h = hd.row, id = sniffIdentity(aoa, hd.row, hd.cols);
-  const above = h - 1, comps = [];
-  const width = Math.max(...aoa.slice(0, h + 1).map(r => (r || []).length));
-  let c = Math.max(id.name, id.pos === undefined ? 0 : id.pos, id.nat === undefined ? 0 : id.nat) + 1;
-  let hasAst = false;
-  while (c < width){
-    if (isH(at(aoa, h, c), APPS_H)){
-      let name = T(at(aoa, above, c)), cc = c;
-      while (!name && cc > 0){ cc--; name = T(at(aoa, above, cc)); }
-      const g = isH(at(aoa, h, c + 1), GLS_H) ? c + 1 : null;
-      let sCol = null;
-      if (g !== null && isH(at(aoa, h, g + 1), AST_H)){ sCol = g + 1; hasAst = true; }
-      comps.push({name: name || 'Comp', a: c, g, s: sCol});
-      c = (sCol !== null ? sCol : (g !== null ? g : c)) + 1;
-    } else c++;
-  }
-  const players = [];
-  for (let r = h + 1; r < aoa.length; r++){
-    const name = T(at(aoa, r, id.name)); if (!name) continue;
-    const p = {no: T(at(aoa, r, id.no)), name, comps: {}};
-    if (id.pos !== undefined) p.pos = T(at(aoa, r, id.pos));
-    if (id.nat !== undefined) p.nat = T(at(aoa, r, id.nat));
-    comps.forEach(k => p.comps[k.name] = {
-      a: N(at(aoa, r, k.a)),
-      g: k.g === null ? 0 : N(at(aoa, r, k.g)),
-      s: k.s === null ? 0 : N(at(aoa, r, k.s))
-    });
-    p.total = p.comps['Total'] || null;
-    delete p.comps['Total'];
-    if (!p.total){
-      p.total = {a: 0, g: 0, s: 0};
-      Object.values(p.comps).forEach(v => {p.total.a += v.a; p.total.g += v.g; p.total.s += v.s;});
-    }
-    players.push(p);
-  }
-  return {comps: comps.map(k => k.name).filter(n => n.toLowerCase() !== 'total'), players, hasAst};
-}
-
-function parseMatchSheet(aoa, key, label){
-  const hd = findHeader(aoa); if (!hd) return null;
-  const h = hd.row, nameCol = hd.cols.name, noCol = hd.cols.no;
-  const oppRow = h - 1, stageRow = h - 2;
-  const width = Math.max(...aoa.slice(0, h + 1).map(r => (r || []).length));
-  const fixtures = [], cols = []; let stage = '';
-  for (let c = nameCol + 1; c < width; c++){
-    if (isH(at(aoa, h, c), APPS_H)){
-      const opp = T(at(aoa, oppRow, c));
-      if (opp.charAt(0) === 'Σ') continue;
-      if (stageRow >= 0){ const st = T(at(aoa, stageRow, c)); if (st) stage = st; }
-      fixtures.push({opponent: opp, stage}); cols.push(c); c += 2;
-    }
-  }
-  const players = [];
-  for (let r = h + 1; r < aoa.length; r++){
-    const name = T(at(aoa, r, nameCol)); if (!name) continue;
-    const cells = cols.map(c => ({a: N(at(aoa, r, c)), g: N(at(aoa, r, c + 1)), s: N(at(aoa, r, c + 2))}));
-    players.push({no: T(at(aoa, r, noCol)), name, cells,
-      a: cells.reduce((s, x) => s + x.a, 0), g: cells.reduce((s, x) => s + x.g, 0)});
-  }
-  return {key, label, fixtures, players};
-}
-function parseSingleMatchSheet(aoa, key, label){
-  const hd = findHeader(aoa); if (!hd) return null;
-  const h = hd.row, nc = hd.cols.name;
-  const players = [];
-  for (let r = h + 1; r < aoa.length; r++){
-    const name = T(at(aoa, r, nc)); if (!name) continue;
-    const a = N(at(aoa, r, nc + 1)), g = N(at(aoa, r, nc + 2)), sv = N(at(aoa, r, nc + 3));
-    players.push({no: T(at(aoa, r, hd.cols.no)), name, a, g, s: sv, cells: [{a, g, s: sv}]});
-  }
-  return {key, label, fixtures: [{opponent: '', stage: label}], players};
-}
-function parseRecords(aoa){
-  const apps = [], goals = [];
-  for (let r = 2; r < aoa.length; r++){
-    if (T(at(aoa, r, 1))) apps.push({rank: N(at(aoa, r, 0)), name: T(at(aoa, r, 1)),
-      apps: N(at(aoa, r, 2)), goals: N(at(aoa, r, 3))});
-    if (T(at(aoa, r, 8))) goals.push({rank: N(at(aoa, r, 7)), name: T(at(aoa, r, 8)),
-      goals: N(at(aoa, r, 9)), apps: N(at(aoa, r, 10))});
-  }
-  return {apps, goals};
-}
-function parseBreakdown(aoa){
-  const width = Math.max(...aoa.map(r => (r || []).length));
-  const seasons = [], eras = {};
-  for (let c = 2; c < width; c++){
-    const s = T(at(aoa, 1, c)); if (s) seasons.push({label: s, col: c});
-    const e = T(at(aoa, 0, c)); if (e) eras[c] = e;
-  }
-  const eraFor = {}; let cur = '';
-  seasons.forEach(s => { if (eras[s.col]) cur = eras[s.col]; eraFor[s.label] = cur; });
-  const mwRows = [];
-  for (let r = 2; r < 60; r++){
-    const v = at(aoa, r, 1);
-    if (typeof v === 'number') mwRows.push({mw: v, row: r});
-    else if (T(v).toUpperCase() === 'SUM') break;
-  }
-  const grid = {}, avg = [];
-  seasons.forEach(s => grid[s.label] = mwRows.map(m => {
-    const v = at(aoa, m.row, s.col);
-    return (v === null || T(v) === '') ? null : N(v);
-  }));
-  mwRows.forEach(m => { const v = at(aoa, m.row, 0); avg.push(v === null ? null : N(v)); });
-  const sums = {}, positions = {};
-  for (let r = 2; r < 60; r++){
-    const lab = T(at(aoa, r, 1)).toUpperCase();
-    if (lab === 'SUM') seasons.forEach(s => sums[s.label] = N(at(aoa, r, s.col)));
-    if (lab === 'POS') seasons.forEach(s => positions[s.label] = N(at(aoa, r, s.col)));
-  }
-  let h = -1;
-  for (let r = 0; r < aoa.length; r++) if (T(at(aoa, r, 0)).toLowerCase() === 'season'){ h = r; break; }
-  const table = [], managers = [];
-  if (h >= 0){
-    let era = '';
-    for (let r = h + 1; r < aoa.length; r++){
-      const s = T(at(aoa, r, 0)); if (!s) continue;
-      era = T(at(aoa, r, 10)) || era;
-      table.push({season: s, pos: N(at(aoa, r, 1)), pts: N(at(aoa, r, 3)),
-        w: N(at(aoa, r, 4)), d: N(at(aoa, r, 5)), l: N(at(aoa, r, 6)),
-        gf: N(at(aoa, r, 7)), ga: N(at(aoa, r, 8)), gd: N(at(aoa, r, 9)), era});
-    }
-    for (let r = h; r < aoa.length; r++){
-      const nm = T(at(aoa, r, 22));
-      if (nm && /[A-Za-z]/.test(nm)){
-        const w = N(at(aoa, r, 24)), d = N(at(aoa, r, 25)), l = N(at(aoa, r, 26));
-        if (w || d || l) managers.push({name: nm, w, d, l});
-      }
-    }
-  }
-  return {seasons: seasons.map(s => s.label), eras: eraFor,
-    matchweeks: mwRows.map(m => m.mw), grid, avg, sums, positions, table, managers};
-}
-function parseWorkbook(wb){
-  const aoa = name => wb.Sheets[name]
-    ? XLSX.utils.sheet_to_json(wb.Sheets[name], {header: 1, raw: true, defval: null, blankrows: true}) : null;
-  const data = {};
-  data.career = parseSquadSheet(aoa('Apps & Goals'));
-  const agHd = findHeader(aoa('Apps & Goals'));
-  data.idCols = agHd ? sniffIdentity(aoa('Apps & Goals'), agHd.row, agHd.cols) : {};
-  const seasons = {};
-  wb.SheetNames.filter(n => n.indexOf('Apps & Goals ') === 0).forEach(n => {
-    seasons[n.replace('Apps & Goals ', '').trim()] = parseSquadSheet(aoa(n));
-  });
-  data.seasons = seasons;
-  data.seasonKeys = Object.keys(seasons).sort((a, b) => parseInt(b) - parseInt(a));
-  data.currentSeason = data.seasonKeys[0];
-  data.competitions = [
-    parseMatchSheet(aoa('Premier League'), 'premier-league', 'Premier League'),
-    parseMatchSheet(aoa('Europe'), 'europe', 'Europe'),
-    parseMatchSheet(aoa('FA Cup'), 'fa-cup', 'FA Cup'),
-    parseMatchSheet(aoa('League Cup'), 'league-cup', 'League Cup'),
-    parseSingleMatchSheet(aoa('Other (CS)'), 'community-shield', 'Community Shield')
-  ].filter(Boolean);
-  data.exPlayers = parseSquadSheet(aoa('Ex-Players'));
-  /* Profiles come from the squad sheet first, then Ex-Players fills in everyone
-     who has since left, so season pages know them too. Names are also indexed in
-     a normalised form to survive punctuation and spacing differences. */
-  data.profiles = {};
-  data.profilesNorm = {};
-  const addProfile = p => {
-    if (!p.pos && !p.nat) return;
-    const rec = {pos: p.pos || '', nat: p.nat || ''};
-    if (!data.profiles[p.name]) data.profiles[p.name] = rec;
-    const key = normName(p.name);
-    if (key && !data.profilesNorm[key]) data.profilesNorm[key] = rec;
-  };
-  data.career.players.forEach(addProfile);
-  if (data.exPlayers) data.exPlayers.players.forEach(addProfile);
-  data.records = parseRecords(aoa('All-time records'));
-  data.breakdown = parseBreakdown(aoa('Season Breakdown'));
-  let asOf = null;
-  const ag = aoa('Apps & Goals');
-  for (let r = 0; r < 4 && !asOf; r++){
-    for (let c = 0; c < 40; c++){
-      const v = at(ag, r, c);
-      if (v instanceof Date && !isNaN(v)){
-        asOf = v.getFullYear() + '-' + String(v.getMonth() + 1).padStart(2, '0')
-          + '-' + String(v.getDate()).padStart(2, '0');
-        break;
-      }
-    }
-  }
-  data.meta = {asOf, source: 'arsenal_stats.xlsx'};
-  return data;
-}
-
-/* ---------- report ---------- */
-const REPO = {owner: 'przemke92', repo: 'arsenal', branch: 'main', path: 'data/arsenal_stats.xlsx'};
-const TOKEN_KEY = 'arsenal-gh-token';
 const COUNTER_KEY = 'arsenal_dashboard_przemke92_v1';
 const FIREBASE_DB = 'https://arsenal-dashboard-2d6e7-default-rtdb.europe-west1.firebasedatabase.app';   // same value as in index.html
-let lastFile = null;
-
-const b64 = bytes => {
-  let bin = '';
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
-  return btoa(bin);
-};
-const store = {
-  get(){ try{ return localStorage.getItem(TOKEN_KEY) || ''; }catch(e){ return ''; } },
-  set(v){ try{ localStorage.setItem(TOKEN_KEY, v); }catch(e){} },
-  clear(){ try{ localStorage.removeItem(TOKEN_KEY); }catch(e){} }
-};
-
-async function commitToGitHub(token, say){
-  const api = `https://api.github.com/repos/${REPO.owner}/${REPO.repo}/contents/${REPO.path}`;
-  const headers = {Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json'};
-  say('Checking the current file…');
-  let sha = null;
-  const probe = await fetch(api + '?ref=' + REPO.branch, {headers});
-  if (probe.ok) sha = (await probe.json()).sha;
-  else if (probe.status === 401) throw new Error('That token was rejected. Check it has not expired.');
-  else if (probe.status === 403) throw new Error('Token lacks permission to write to this repository.');
-  else if (probe.status !== 404) throw new Error('GitHub replied ' + probe.status + ' when reading the file.');
-  say(sha ? 'Uploading the new version…' : 'Creating the file…');
-  const stamp = new Date();
-  const body = {
-    message: 'Update stats ' + stamp.getFullYear() + '-'
-      + String(stamp.getMonth() + 1).padStart(2, '0') + '-' + String(stamp.getDate()).padStart(2, '0'),
-    content: b64(lastFile.bytes), branch: REPO.branch
-  };
-  if (sha) body.sha = sha;
-  const res = await fetch(api, {method: 'PUT', headers, body: JSON.stringify(body)});
-  if (!res.ok){
-    let detail = '';
-    try{ detail = (await res.json()).message || ''; }catch(e){}
-    throw new Error('GitHub replied ' + res.status + (detail ? ': ' + detail : ''));
-  }
-  return (await res.json()).commit;
-}
-
-const REQUIRED = ['Match', 'Apps & Goals', 'Premier League', 'Europe', 'FA Cup', 'League Cup',
-  'Other (CS)', 'Ex-Players', 'All-time records', 'Season Breakdown'];
-let parsed = null;
-
-function check(state, title, detail){
-  return `<div class="check ${state}"><span class="mark">${
-    state === 'ok' ? '✓' : state === 'warn' ? '!' : '×'}</span>
-    <span class="txt">${esc(title)}${detail ? `<small>${esc(detail)}</small>` : ''}</span></div>`;
-}
-
-function report(wb, d, fileName, fileSize){
-  const missing = REQUIRED.filter(n => !wb.SheetNames.includes(n));
-  const played = d.competitions.reduce((s, c) =>
-    s + c.fixtures.filter((f, i) => c.players.some(p => p.cells[i] && p.cells[i].a > 0)).length, 0);
-  const noNumber = d.career.players.filter(p => !p.no || isNaN(parseInt(p.no)));
-  const seasonGoals = d.competitions.reduce((s, c) => s + c.players.reduce((t, p) => t + p.g, 0), 0);
-  const dupes = (() => {
-    const seen = {}, out = [];
-    d.career.players.forEach(p => { if (seen[p.name]) out.push(p.name); seen[p.name] = 1; });
-    return out;
-  })();
-
-  const checks =
-    (missing.length ? check('bad', 'Missing sheets', missing.join(', '))
-                    : check('ok', 'All nine sheets found', REQUIRED.length + ' sheets read'))
-    + check(d.career.players.length ? 'ok' : 'bad', d.career.players.length + ' players in the squad sheet',
-        'Apps & Goals')
-    + check(d.seasonKeys.length ? 'ok' : 'warn', d.seasonKeys.length + ' season sheets',
-        d.seasonKeys.join(' · '))
-    + check(played ? 'ok' : 'warn', played + ' matches recorded across all competitions',
-        played ? seasonGoals + ' goals logged' : 'the current season sheets are still empty')
-    + check(d.breakdown.seasons.length ? 'ok' : 'bad',
-        d.breakdown.seasons.length + ' seasons in Season Breakdown',
-        d.breakdown.table.length + ' rows in the long table')
-    + check(d.exPlayers.players.length ? 'ok' : 'warn', d.exPlayers.players.length + ' ex-players')
-    + check(noNumber.length ? 'warn' : 'ok',
-        noNumber.length ? noNumber.length + ' players without a shirt number' : 'Every player has a shirt number',
-        noNumber.length ? noNumber.map(p => p.name).join(', ') + ' will sort to the bottom' : '')
-    + (dupes.length ? check('warn', 'Duplicate names in the squad sheet', dupes.join(', ')) : '')
-    + (() => {
-        const withPos = d.career.players.filter(p => T(p.pos)).length;
-        const withNat = d.career.players.filter(p => T(p.nat)).length;
-        const total = d.career.players.length;
-        const col = i => i === undefined ? '?' : String.fromCharCode(65 + i);
-        const where = 'name in column ' + col(d.idCols.name)
-          + ', position in ' + col(d.idCols.pos) + ', nationality in ' + col(d.idCols.nat);
-        if (!withPos && !withNat) return check('bad', 'No position or nationality found',
-          'Read ' + where + '. Check the Apps & Goals sheet: values should look like GK, DF, MF, FW and ENG, ESP, NED.');
-        const positions = [...new Set(d.career.players.map(p => T(p.pos)).filter(Boolean))];
-        const nations = [...new Set(d.career.players.map(p => T(p.nat)).filter(Boolean))]
-          .map(n => (flagOf(n) || '') + ' ' + natName(n));
-        const exWithPos = d.exPlayers.players.filter(p => T(p.pos)).length;
-        const exWithNat = d.exPlayers.players.filter(p => T(p.nat)).length;
-        const exTotal = d.exPlayers.players.length;
-        const missing = d.exPlayers.players.filter(p => !T(p.pos) || !T(p.nat)).map(p => p.name);
-        return check('ok', 'Profile columns detected', where)
-          + check(exWithPos === exTotal && exWithNat === exTotal ? 'ok' : 'warn',
-            'Ex-players: ' + exWithPos + '/' + exTotal + ' with a position, ' + exWithNat + '/' + exTotal + ' with a nationality',
-            missing.length ? 'Incomplete: ' + missing.slice(0, 12).join(', ') + (missing.length > 12 ? ' and ' + (missing.length - 12) + ' more' : '') : 'season pages will show all of them')
-          + check(withPos === total ? 'ok' : 'warn', withPos + ' of ' + total + ' players have a position',
-            positions.join(' · '))
-          + check(withNat === total ? 'ok' : 'warn', withNat + ' of ' + total + ' players have a nationality',
-            nations.join(' · '));
-      })()
-    + check(d.career.hasAst ? 'ok' : 'warn',
-        d.career.hasAst ? 'Assists found in the squad sheet' : 'No assist columns in the squad sheet',
-        'Season sheets without an Ast column simply hide the column on the site')
-    + check(d.meta.asOf ? 'ok' : 'warn', d.meta.asOf ? 'Dated ' + d.meta.asOf : 'No date in cell R2',
-        d.meta.asOf ? '' : 'the dashboard will show a dash instead');
-
-  const compRows = d.competitions.map(c => {
-    const done = c.fixtures.filter((f, i) => c.players.some(p => p.cells[i] && p.cells[i].a > 0)).length;
-    return `<tr><td>${esc(c.label)}</td>
-      <td class="r num">${c.fixtures.length}</td>
-      <td class="r num">${done}</td>
-      <td class="r num">${c.players.reduce((s, p) => s + p.g, 0)}</td></tr>`;
-  }).join('');
-
-  const top = d.career.players.slice().sort((a, b) => b.total.a - a.total.a).slice(0, 5)
-    .map(p => `<tr><td class="num" style="color:var(--brass);width:36px">${esc(p.no)}</td>
-      <td>${esc(p.name)}</td><td class="r num">${p.total.a}</td><td class="r num">${p.total.g}</td></tr>`).join('');
-
-  return `<h2>File</h2>
-    <div class="kpis">
-      <div class="kpi"><div class="v">${(fileSize / 1024).toFixed(0)}</div><div class="l">KB</div></div>
-      <div class="kpi"><div class="v">${wb.SheetNames.length}</div><div class="l">Sheets</div></div>
-      <div class="kpi"><div class="v">${d.career.players.length}</div><div class="l">Squad</div></div>
-      <div class="kpi"><div class="v">${d.seasonKeys.length}</div><div class="l">Seasons</div></div>
-      <div class="kpi"><div class="v">${played}</div><div class="l">Matches</div></div>
-    </div>
-    <div class="note">${esc(fileName)}</div>
-
-    <h2>Checks</h2>${checks}
-
-    <h2>Competitions</h2>
-    <table><thead><tr><th>Competition</th><th class="r">Fixtures</th><th class="r">Played</th><th class="r">Goals</th></tr></thead>
-      <tbody>${compRows}</tbody></table>
-
-    <h2>Most appearances in the squad sheet</h2>
-    <table><thead><tr><th>#</th><th>Player</th><th class="r">Apps</th><th class="r">Goals</th></tr></thead>
-      <tbody>${top}</tbody></table>
-
-    <h2>Looks right?</h2>
-    <p class="lede">Open the dashboard with this file to click through it. The preview lives in this tab only,
-    nobody else sees it, and the live site keeps reading the committed file until you publish.</p>
-    <div class="row"><button class="btn" id="open">Open the dashboard with this file</button></div>
-
-    <h2>Publish it</h2>
-    <p class="lede">This commits the file straight to ${esc(REPO.owner)}/${esc(REPO.repo)} as
-    ${esc(REPO.path)}. No going to GitHub, no second upload.</p>
-    <div class="tokenrow">
-      <input type="password" id="tok" placeholder="GitHub token" value="${esc(store.get())}" autocomplete="off">
-      <label class="remember"><input type="checkbox" id="remember" ${store.get() ? 'checked' : ''}> remember on this device</label>
-    </div>
-    <div class="row">
-      <button class="btn" id="commit">Commit to GitHub</button>
-      <a class="btn ghost" href="https://github.com/${esc(REPO.owner)}/${esc(REPO.repo)}/upload/${esc(REPO.branch)}/data" target="_blank" rel="noopener">Upload by hand instead</a>
-    </div>
-    <div id="commitmsg" class="commitmsg"></div>
-    <div class="note">The token needs to be a fine-grained personal access token, this repository only,
-    with Contents set to read and write. It is stored in this browser, never in the page source,
-    and never leaves your machine except to api.github.com.</div>`;
-}
 
 /* ---------- traffic ----------
    Draw the section first, then fill it in. A blocked or hanging request must
@@ -688,65 +225,6 @@ async function loadCountries(){
 trafficSkeleton();
 loadCounter();
 loadCountries();
-
-const out = document.getElementById('out');
-function handle(file){
-  const fr = new FileReader();
-  fr.onload = () => {
-    out.classList.remove('hidden');
-    try{
-      const bytes = new Uint8Array(fr.result);
-      lastFile = {name: file.name, bytes};
-      const wb = XLSX.read(bytes, {type: 'array', cellDates: true});
-      parsed = parseWorkbook(wb);
-      out.innerHTML = report(wb, parsed, file.name, file.size);
-      const commitBtn = document.getElementById('commit');
-      if (commitBtn) commitBtn.onclick = async () => {
-        const tok = document.getElementById('tok').value.trim();
-        const msg = document.getElementById('commitmsg');
-        const say = t => { msg.className = 'commitmsg working'; msg.textContent = t; };
-        if (!tok){ msg.className = 'commitmsg bad'; msg.textContent = 'Paste a token first.'; return; }
-        if (document.getElementById('remember').checked) store.set(tok); else store.clear();
-        commitBtn.disabled = true;
-        try{
-          const c = await commitToGitHub(tok, say);
-          msg.className = 'commitmsg good';
-          msg.innerHTML = 'Committed. GitHub Pages usually rebuilds within a minute. '
-            + `<a href="${'https://' + REPO.owner + '.github.io/' + REPO.repo + '/'}" target="_blank" rel="noopener">Open the dashboard</a>`
-            + (c && c.sha ? ` <span style="color:var(--muted)">(${c.sha.slice(0, 7)})</span>` : '');
-        }catch(e){
-          msg.className = 'commitmsg bad';
-          msg.textContent = e.message;
-        }
-        commitBtn.disabled = false;
-      };
-
-      const btn = document.getElementById('open');
-      if (btn) btn.onclick = () => {
-        try{
-          sessionStorage.setItem('arsenal-preview', JSON.stringify(parsed));
-          location.href = 'index.html';
-        }catch(e){
-          btn.textContent = 'This browser blocked the handoff: ' + e.message;
-        }
-      };
-    }catch(e){
-      out.innerHTML = `<h2>Could not read that file</h2>${check('bad', e.message,
-        'Make sure it is the .xlsx workbook, not a .csv export or a zipped folder.')}`;
-    }
-  };
-  fr.readAsArrayBuffer(file);
-}
-
-const drop = document.getElementById('drop'), pick = document.getElementById('pick');
-pick.onchange = () => pick.files[0] && handle(pick.files[0]);
-['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => {
-  e.preventDefault(); drop.classList.add('over');
-}));
-['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => {
-  e.preventDefault(); drop.classList.remove('over');
-}));
-drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) handle(f); });
 </script>
 </body>
 </html>
