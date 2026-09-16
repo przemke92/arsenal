@@ -923,6 +923,45 @@ const DEFAULT_SORT = {ex: {col: 'apps', dir: -1}};   // everything else: shirt n
    notification off without touching the rest of this function. */
 const NTFY_TOPIC = 'arsenal-dash-q7hsjhv4newh';
 
+/* The country lookup only needs to happen once per tab: cached here and
+   reused by every page-view log for the rest of the session. */
+let sessionCountry = null;
+async function getCountry(){
+  if (sessionCountry) return sessionCountry;
+  try{
+    const geo = await fetch('https://api.country.is/').then(r => r.json());
+    if (geo && geo.country) sessionCountry = geo.country;
+  }catch(e){}
+  return sessionCountry;
+}
+
+/* Logs one page view to Firebase (route + country + time) and, only when
+   notify is true, also sends the ntfy push. This is a single-page app —
+   clicking between Squad, Ex-players and so on never reloads the page, so
+   without this every visit would only ever show up as "Home", whichever
+   page the visitor happened to land on first. */
+async function logVisit(routeId, notify){
+  if (!FIREBASE_DB) return;
+  const country = await getCountry();
+  if (!country) return;
+  try{
+    await fetch(FIREBASE_DB.replace(/\/$/, '') + '/arsenal/visits.json', {
+      method: 'POST',
+      body: JSON.stringify({c: country, t: Date.now(), p: routeId})
+    });
+  }catch(e){ /* logging is optional too */ }
+  if (notify && NTFY_TOPIC){
+    const pageLabel = (PAGES.find(p => p.id === routeId) || {}).label || routeId || 'Home';
+    try{
+      await fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
+        method: 'POST',
+        body: `${country} · landed on ${pageLabel}`,
+        headers: {'Title': 'New Arsenal Dashboard visit', 'Tags': 'soccer'}
+      });
+    }catch(e){ /* a missed push notification is never worth breaking the page over */ }
+  }
+}
+
 async function countVisit(){
   let firstTime = true;
   try{
@@ -933,31 +972,7 @@ async function countVisit(){
   try{
     await fetch(`https://countapi.mileshilliard.com/api/v1/hit/${COUNTER_KEY}`);
   }catch(e){ /* the counter is decoration: never let it break the page */ }
-
-  const routeId = route();
-  const pageLabel = (PAGES.find(p => p.id === routeId) || {}).label || routeId || 'Home';
-  let country = null;
-  if (FIREBASE_DB){
-    try{
-      const geo = await fetch('https://api.country.is/').then(r => r.json());
-      if (geo && geo.country){
-        country = geo.country;
-        await fetch(FIREBASE_DB.replace(/\/$/, '') + '/arsenal/visits.json', {
-          method: 'POST',
-          body: JSON.stringify({c: geo.country, t: Date.now(), p: routeId})
-        });
-      }
-    }catch(e){ /* logging is optional too */ }
-  }
-  if (NTFY_TOPIC){
-    try{
-      await fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
-        method: 'POST',
-        body: `${country ? country + ' · ' : ''}landed on ${pageLabel}`,
-        headers: {'Title': 'New Arsenal Dashboard visit', 'Tags': 'soccer'}
-      });
-    }catch(e){ /* a missed push notification is never worth breaking the page over */ }
-  }
+  await logVisit(route(), true);
 }
 
 function readPreview(){
@@ -1061,7 +1076,10 @@ const PAGES = [
   {id: 'records', label: 'All-time records', group: 'Archive'}
 ];
 const route = () => (location.hash.replace(/^#\/?/, '').split('?')[0]) || '';
-window.addEventListener('hashchange', () => { state.player = null; state.matrixSeen = false; render(); });
+window.addEventListener('hashchange', () => {
+  state.player = null; state.matrixSeen = false; render();
+  logVisit(route(), false);
+});
 
 /* ============================================================
    4. VIEW HELPERS
