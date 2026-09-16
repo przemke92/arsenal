@@ -1459,11 +1459,16 @@ function surnameOf(n){
   return (i === 0 ? parts : parts.slice(0, i)).join(' ');
 }
 const pitchLabel = s => s.length > 17 ? s.slice(0, 16) + '…' : s;
-/* "G", "A", or both ("G,A" / "G A" / "GA") in the Goal/Assist column —
-   token-matched so a full word like "Goal" never false-triggers the A. */
+/* "G", "A", or repeats of either ("G;G" for a brace, "G,A", "G A") in the
+   Goal/Assist column — token-matched so a full word like "Goal" never
+   false-triggers the A, and counted rather than just detected so a second
+   goal actually shows as a second goal. */
 function parseGA(val){
   const tokens = String(val || '').toUpperCase().split(/[^A-Z]+/).filter(Boolean);
-  return {goal: tokens.includes('G'), assist: tokens.includes('A')};
+  return {
+    goals: tokens.filter(t => t === 'G').length,
+    assists: tokens.filter(t => t === 'A').length
+  };
 }
 /* Ratings only carry a short name (whatever was pasted from WhoScored),
    so it's matched back to the roster by surname, accent- and punctuation-
@@ -1505,14 +1510,22 @@ function pitchMarkings(){
 }
 
 function markBadges(x, y, row){
-  const {goal, assist} = parseGA(row.ga);
+  const {goals, assists} = parseGA(row.ga);
   const subbed = /subbed/i.test(row.status);
-  const assistY = goal ? y + 11 : y - 13;
+  const iconRow = (cx, cy, n, r, fill, cls, glyph) => {
+    const start = cx - (n - 1) * 5;
+    let out = '';
+    for (let i = 0; i < n; i++){
+      const bx = start + i * 10;
+      out += `<circle cx="${bx}" cy="${cy}" r="${r}" fill="${fill}"/>
+        <text x="${bx}" y="${cy + 3.5}" text-anchor="middle" class="gaIcon ${cls}">${glyph}</text>`;
+    }
+    return out;
+  };
+  const assistY = goals ? y + 11 : y - 13;
   return `${subbed ? `<text x="${x + 17}" y="${y - 12}" text-anchor="middle" class="subMark down">↓</text>` : ''}
-    ${goal ? `<circle cx="${x - 17}" cy="${y - 13}" r="9" fill="var(--ink3)"/>
-      <text x="${x - 17}" y="${y - 9}" text-anchor="middle" class="gaIcon ball">⚽</text>` : ''}
-    ${assist ? `<circle cx="${x - 17}" cy="${assistY}" r="8" fill="var(--brass)"/>
-      <text x="${x - 17}" y="${assistY + 4}" text-anchor="middle" class="gaIcon assist">A</text>` : ''}`;
+    ${goals ? iconRow(x - 17, y - 13, goals, 7.5, 'var(--ink3)', 'ball', '⚽') : ''}
+    ${assists ? iconRow(x - 17, assistY, assists, 7, 'var(--brass)', 'assist', 'A') : ''}`;
 }
 
 function pitchCard(d){
@@ -1549,12 +1562,12 @@ function pitchCard(d){
     <div class="subsHead">Substitutes</div>
     ${subs.map(row => {
       const {full, label} = resolveRatingPlayer(d, row.name);
-      const {goal, assist} = parseGA(row.ga);
+      const {goals, assists} = parseGA(row.ga);
       return `<div class="subRow${full ? ' clickable' : ''}"${full ? ` data-player="${esc(full)}"` : ''}>
         <span class="subMark up">↑</span>
         <span class="subName">${esc(label)}</span>
-        ${goal ? '<span class="gaIcon ball">⚽</span>' : ''}
-        ${assist ? '<span class="gaIcon assist">A</span>' : ''}
+        ${goals ? '<span class="gaIcon ball">⚽</span>'.repeat(goals) : ''}
+        ${assists ? '<span class="gaIcon assist">A</span>'.repeat(assists) : ''}
         <span class="subRating" style="color:${ratingColor(row.rating)}">${row.rating ? row.rating.toFixed(1) : '·'}</span>
       </div>`;
     }).join('')}
