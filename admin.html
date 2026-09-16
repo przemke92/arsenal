@@ -586,6 +586,13 @@ const withTimeout = (url, ms) => {
   return fetch(url, {signal: ctl.signal}).finally(() => clearTimeout(timer));
 };
 
+const PAGE_LABEL = {
+  '': 'Home', 'latest-match': 'Latest Match', squad: 'Squad', season: 'By season',
+  'premier-league': 'Premier League', europe: 'Europe', 'fa-cup': 'FA Cup',
+  'league-cup': 'League Cup', 'community-shield': 'Community Shield',
+  history: 'Season history', 'ex-players': 'Ex-players', records: 'All-time records'
+};
+
 function trafficSkeleton(){
   document.getElementById('traffic').innerHTML = `<h2>Traffic</h2>
     <div class="kpis">
@@ -654,11 +661,27 @@ async function loadCountries(){
     days.push({label: new Date(start).getDate(), n: rows.filter(v => v.t >= start && v.t < start + day).length});
   }
   const peak = Math.max(1, ...days.map(d => d.n));
-  html += `<h2>Last 2 weeks</h2><div class="spark">${days.map(d => `
+  html += `<h2>Last fortnight</h2><div class="spark">${days.map(d => `
     <div class="sparkcol" title="${d.n} on the ${d.label}">
       <div class="sparkbar" style="height:${(d.n / peak * 100).toFixed(0)}%"></div>
       <div class="sparklab">${d.label}</div>
     </div>`).join('')}</div>`;
+
+  const withPage = rows.filter(v => v.p !== undefined);
+  if (withPage.length){
+    const byPage = {};
+    withPage.forEach(v => byPage[v.p] = (byPage[v.p] || 0) + 1);
+    const sortedPages = Object.entries(byPage).sort((a, b) => b[1] - a[1]);
+    const pmax = sortedPages[0][1];
+    html += `<h2>Most visited pages</h2><table><thead><tr>
+        <th>Page</th><th class="r">Visits</th><th style="width:38%"></th>
+      </tr></thead><tbody>${sortedPages.map(([id, n]) => `<tr>
+        <td>${esc(PAGE_LABEL[id] || id || 'Home')}</td>
+        <td class="r num">${n}</td>
+        <td><div style="height:7px;width:${(n / pmax * 100).toFixed(1)}%;background:var(--brass)"></div></td>
+      </tr>`).join('')}</tbody></table>
+      <div class="note">Only counts visits logged since this was added — older visits didn't record a page.</div>`;
+  }
   detail.innerHTML = html;
 }
 

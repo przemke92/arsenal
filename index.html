@@ -915,6 +915,14 @@ const FIREBASE_DB = 'https://arsenal-dashboard-2d6e7-default-rtdb.europe-west1.f
 const state = {data: null, source: 'none', err: null, sort: {}, sel: {}, player: null, matrixSeen: false, lastRoute: null, animateNow: false, photos: {}, badges: {clubs: {}, competitions: {}}, countdownTimer: null, standings: null};
 const DEFAULT_SORT = {ex: {col: 'apps', dir: -1}};   // everything else: shirt number, 1 upwards
 
+/* A private, hard-to-guess ntfy.sh topic — anyone who knows this exact
+   string can publish to it or subscribe to it, since ntfy topics have no
+   login, so treat it like a password. Subscribe to it in the ntfy app
+   (iOS/Android) to get a push every time someone opens the dashboard.
+   Change the suffix any time to rotate it. Leave it empty to turn the
+   notification off without touching the rest of this function. */
+const NTFY_TOPIC = 'arsenal-dash-q7hsjhv4newh';
+
 async function countVisit(){
   let firstTime = true;
   try{
@@ -925,15 +933,31 @@ async function countVisit(){
   try{
     await fetch(`https://countapi.mileshilliard.com/api/v1/hit/${COUNTER_KEY}`);
   }catch(e){ /* the counter is decoration: never let it break the page */ }
-  if (!FIREBASE_DB) return;
-  try{
-    const geo = await fetch('https://api.country.is/').then(r => r.json());
-    if (!geo || !geo.country) return;
-    await fetch(FIREBASE_DB.replace(/\/$/, '') + '/arsenal/visits.json', {
-      method: 'POST',
-      body: JSON.stringify({c: geo.country, t: Date.now()})
-    });
-  }catch(e){ /* logging is optional too */ }
+
+  const routeId = route();
+  const pageLabel = (PAGES.find(p => p.id === routeId) || {}).label || routeId || 'Home';
+  let country = null;
+  if (FIREBASE_DB){
+    try{
+      const geo = await fetch('https://api.country.is/').then(r => r.json());
+      if (geo && geo.country){
+        country = geo.country;
+        await fetch(FIREBASE_DB.replace(/\/$/, '') + '/arsenal/visits.json', {
+          method: 'POST',
+          body: JSON.stringify({c: geo.country, t: Date.now(), p: routeId})
+        });
+      }
+    }catch(e){ /* logging is optional too */ }
+  }
+  if (NTFY_TOPIC){
+    try{
+      await fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
+        method: 'POST',
+        body: `${country ? country + ' · ' : ''}landed on ${pageLabel}`,
+        headers: {'Title': 'New Arsenal Dashboard visit', 'Tags': 'soccer'}
+      });
+    }catch(e){ /* a missed push notification is never worth breaking the page over */ }
+  }
 }
 
 function readPreview(){
