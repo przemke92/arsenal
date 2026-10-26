@@ -108,11 +108,19 @@ h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:-.005em;text-
   border-top:1px solid var(--ink3);font-family:var(--mono);font-size:11px;color:var(--muted)}
 .mcomp{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mwhen{color:var(--parchment);white-space:nowrap}
-.badge{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
-  width:34px;height:34px;border-radius:3px;overflow:hidden}
-.mfoot .badge{width:18px;height:18px}
+.badge{--badge-size:34px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
+  width:var(--badge-size);height:var(--badge-size);border-radius:3px}
+.mfoot .badge{--badge-size:18px}
 .badge img{width:100%;height:100%;object-fit:contain}
-/* the actual zoom now comes from an inline style per club, see BADGE_SCALE above */
+/* Premier League crests sit in a slightly bigger box (grown from the
+   centre, not scaled) so they read the same size as other crests without
+   ever being able to clip - see the comment on badgeFor() in the script.
+   The negative margin pulls the extra size back in so the badge still
+   takes up the same footprint in the layout. */
+.badge-pl{--badge-pl-zoom:1.22;
+  width:calc(var(--badge-size) * var(--badge-pl-zoom));
+  height:calc(var(--badge-size) * var(--badge-pl-zoom));
+  margin:calc((var(--badge-size) - (var(--badge-size) * var(--badge-pl-zoom))) / 2)}
 .badge.mono{background:var(--ink3);color:var(--muted);font-family:var(--mono);font-size:12px}
 .mfoot .badge.mono{font-size:9px}
 @media (max-width:620px){
@@ -128,10 +136,10 @@ h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:-.005em;text-
    made them look coarse. */
 @media (min-width:621px){
   .mtop{gap:15px}
-  .badge{width:56px;height:56px;border-radius:4px}
+  .badge{--badge-size:56px;border-radius:4px}
   .badge.mono{font-size:18px}
   .mfoot{gap:10px}
-  .mfoot .badge{width:26px;height:26px}
+  .mfoot .badge{--badge-size:26px}
   .mfoot .badge.mono{font-size:11px}
   .mclub{font-size:19px}
   .mscore{font-size:26px}
@@ -1352,15 +1360,18 @@ function standingsBlock(){
     </table></div>`;
 }
 
-/* Per-club nudge for the Premier League's own badge SVGs. Most carry a lot
-   of built-in transparent margin and need zooming in to read the same size
-   as crests from other sources — but not evenly: a few (Brighton) are
-   already tightly cropped in their own file, so the default zoom overshoots
-   the box for those specifically. Add an entry here whenever one looks off. */
-const BADGE_SCALE_DEFAULT = 1.3;
-const BADGE_SCALE = {
-  'Brighton & Hove Albion': 1.05
-};
+/* Badges from the Premier League's own CDN carry more built-in transparent
+   margin than crests from other sources, so at the same box size they read
+   smaller. The fix used to be a CSS transform:scale() on the image, zoomed
+   in to eat that margin - but margin isn't even on every crest (Brighton's
+   own file is already tight, and Leeds' and Everton's are taller than they
+   are wide), so a uniform zoom pushed real artwork past the box edge and
+   the parent's overflow:hidden cropped it off. No per-club number fixes
+   that for good, since the next oddly-shaped crest just repeats it.
+   Instead the box itself grows for PL crests (badge-pl, in the CSS) while
+   the image inside stays plain object-fit:contain - so the full crest is
+   always drawn in full, at whatever size the box is, and nothing can ever
+   be clipped regardless of its shape. */
 function badgeFor(name, kind){
   const map = (state.badges && state.badges[kind]) || {};
   const url = map[normName(name)];
@@ -1368,9 +1379,7 @@ function badgeFor(name, kind){
   const initials = (words.length > 1 ? words[0][0] + words[1][0] : String(name).slice(0, 2)).toUpperCase();
   if (!url) return `<span class="badge mono">${esc(initials)}</span>`;
   const isPL = /resources\.premierleague\.com/i.test(url);
-  const scale = isPL ? (BADGE_SCALE[name] !== undefined ? BADGE_SCALE[name] : BADGE_SCALE_DEFAULT) : 1;
-  const style = scale !== 1 ? ` style="transform:scale(${scale})"` : '';
-  return `<span class="badge${isPL ? ' badge-pl' : ''}"><img src="${esc(url)}" alt="${esc(name)}" loading="lazy"${style}
+  return `<span class="badge${isPL ? ' badge-pl' : ''}"><img src="${esc(url)}" alt="${esc(name)}" loading="lazy"
     onerror="this.parentNode.className='badge mono';this.parentNode.textContent='${esc(initials)}'"></span>`;
 }
 
