@@ -170,6 +170,7 @@ a.mcardLink:hover{background:var(--ink3)}
 .subRow .gaIcon.ball{font-size:13px}
 .subRow .gaIcon.assist{font-size:10px;font-weight:700;color:#1D1717;background:var(--brass);
   width:15px;height:15px;border-radius:50%}
+.subRow .gaIcon.card{width:9px;height:12px;border-radius:2px;background:#D8342B}
 .subRating{font-family:var(--mono);font-size:12px;font-weight:700;min-width:26px;text-align:right}
 
 .kickoff{grid-column:1/-1;background:var(--ink2);padding:15px 16px 16px;text-align:center}
@@ -1418,6 +1419,15 @@ function matchResult(score){
   const us = +m[1], them = +m[2];
   if (us > them) return {letter: 'W', cls: 'win'};
   if (us < them) return {letter: 'L', cls: 'loss'};
+  /* A level score that went to penalties is decided by the shoot-out,
+     written in brackets, Arsenal first as well: "1-1 (3-5 pen)" is a loss,
+     "1-1 (5-3 pen)" a win. A plain "1-1" stays a draw. */
+  const p = String(score).slice(m.index + m[0].length)
+    .match(/\(\s*(\d+)\s*[-–:]\s*(\d+)\s*(?:pens?\.?|pk|kar\w*)?\s*\)/i);
+  if (p){
+    if (+p[1] > +p[2]) return {letter: 'W', cls: 'win'};
+    if (+p[1] < +p[2]) return {letter: 'L', cls: 'loss'};
+  }
   return {letter: 'D', cls: 'draw'};
 }
 
@@ -1518,7 +1528,8 @@ function parseGA(val){
   const tokens = String(val || '').toUpperCase().split(/[^A-Z]+/).filter(Boolean);
   return {
     goals: tokens.filter(t => t === 'G').length,
-    assists: tokens.filter(t => t === 'A').length
+    assists: tokens.filter(t => t === 'A').length,
+    red: tokens.indexOf('RC') > -1
   };
 }
 /* Ratings only carry a short name (whatever was pasted from WhoScored),
@@ -1561,7 +1572,7 @@ function pitchMarkings(){
 }
 
 function markBadges(x, y, row){
-  const {goals, assists} = parseGA(row.ga);
+  const {goals, assists, red} = parseGA(row.ga);
   const subbed = /subbed/i.test(row.status);
   const iconRow = (cx, cy, n, r, fill, cls, glyph) => {
     const start = cx - (n - 1) * 5;
@@ -1575,6 +1586,7 @@ function markBadges(x, y, row){
   };
   const assistY = goals ? y + 11 : y - 13;
   return `${subbed ? `<text x="${x + 17}" y="${y - 12}" text-anchor="middle" class="subMark down">↓</text>` : ''}
+    ${red ? `<rect x="${x + 13}" y="${y + 5}" width="8" height="11" rx="1.5" fill="#D8342B" stroke="#1D1717" stroke-width=".8"/>` : ''}
     ${goals ? iconRow(x - 17, y - 13, goals, 7.5, 'var(--ink3)', 'ball', '⚽') : ''}
     ${assists ? iconRow(x - 17, assistY, assists, 7, 'var(--brass)', 'assist', 'A') : ''}`;
 }
@@ -1613,12 +1625,13 @@ function pitchCard(d){
     <div class="subsHead">Substitutes</div>
     ${subs.map(row => {
       const {full, label} = resolveRatingPlayer(d, row.name);
-      const {goals, assists} = parseGA(row.ga);
+      const {goals, assists, red} = parseGA(row.ga);
       return `<div class="subRow${full ? ' clickable' : ''}"${full ? ` data-player="${esc(full)}"` : ''}>
         <span class="subMark up">↑</span>
         <span class="subName">${esc(label)}</span>
         ${goals ? '<span class="gaIcon ball">⚽</span>'.repeat(goals) : ''}
         ${assists ? '<span class="gaIcon assist">A</span>'.repeat(assists) : ''}
+        ${red ? '<span class="gaIcon card"></span>' : ''}
         <span class="subRating" style="color:${ratingColor(row.rating)}">${row.rating ? row.rating.toFixed(1) : '·'}</span>
       </div>`;
     }).join('')}
